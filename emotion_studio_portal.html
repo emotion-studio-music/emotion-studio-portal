@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Emotion Studio — Area Artisti</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Helvetica Neue',Arial,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;overflow-x:hidden}
+
+/* ── LOGIN ── */
+#login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:#0a0a0a}
+.logo-box{border:3px solid #fff;padding:12px 28px;margin-bottom:8px;display:inline-block}
+.logo-box span{font-size:32px;font-weight:900;letter-spacing:-1px;text-transform:uppercase}
+.logo-sub{font-size:13px;font-weight:700;letter-spacing:6px;margin-bottom:40px}
+.login-title{font-size:12px;color:#666;margin-bottom:24px;letter-spacing:3px;text-transform:uppercase}
+.inp-wrap{width:100%;max-width:320px;margin-bottom:12px}
+.inp-wrap input{width:100%;padding:14px 16px;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;font-size:15px;outline:none;border-radius:0;-webkit-appearance:none}
+.inp-wrap input:focus{border-color:#fff}
+.inp-wrap input::placeholder{color:#555}
+.btn-primary{width:100%;max-width:320px;padding:15px;background:#fff;color:#000;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border:none;cursor:pointer;margin-top:8px}
+.login-hint{margin-top:20px;font-size:11px;color:#3a3a3a;text-align:center;line-height:2}
+
+/* ── TOPBAR ── */
+.topbar{background:#111;border-bottom:1px solid #1e1e1e;padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.topbar-logo{font-size:15px;font-weight:900;letter-spacing:1px;display:flex;align-items:center;gap:6px}
+.topbar-logo-box{border:2px solid #fff;padding:2px 7px;font-size:13px;font-weight:900}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;background:#fff;color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px}
+.btn-logout{font-size:10px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;background:none;border:none;color:#555;padding:4px}
+
+/* ── BADGE ABBONAMENTO ── */
+.plan-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border-radius:0;margin-bottom:20px}
+.plan-pro{background:#1a1200;color:#ffaa00;border:1px solid #332200}
+.plan-premium{background:#0a0f1a;color:#4a9eff;border:1px solid #152040}
+
+/* ── CONTENT ── */
+.content{padding:20px 16px 80px;max-width:600px;margin:0 auto}
+.welcome-block{margin-bottom:20px}
+.welcome-block h1{font-size:24px;font-weight:900;margin-bottom:4px}
+.welcome-block p{font-size:11px;color:#555;letter-spacing:2px;text-transform:uppercase}
+
+/* ── SESSION TRACKER ── */
+.session-tracker{background:#111;border:1px solid #1e1e1e;padding:16px;margin-bottom:20px}
+.tracker-title{font-size:10px;color:#666;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+.tracker-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.tracker-label{font-size:12px;color:#888;width:140px;flex-shrink:0}
+.tracker-dots{display:flex;gap:6px}
+.dot{width:20px;height:20px;border-radius:50%;border:2px solid #333;background:transparent}
+.dot.used{background:#fff;border-color:#fff}
+.dot.pro{background:#ffaa00;border-color:#ffaa00}
+.dot.premium{background:#4a9eff;border-color:#4a9eff}
+.tracker-extra{font-size:11px;color:#555;margin-top:6px}
+
+/* ── NEXT SESSION ── */
+.session-next{background:#fff;color:#000;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;cursor:pointer}
+.session-icon{font-size:22px}
+.session-info strong{font-size:14px;font-weight:900;display:block;margin-bottom:2px}
+.session-info span{font-size:12px;color:#555}
+.session-cta{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:1px;background:#000;color:#fff;padding:6px 12px;text-transform:uppercase;white-space:nowrap}
+
+/* ── SECTION TITLE ── */
+.section-title{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #1a1a1a}
+
+/* ── BACHECA ── */
+.update-item{background:#111;border-left:3px solid #fff;padding:12px 14px;margin-bottom:8px}
+.update-item.pro-update{border-left-color:#ffaa00}
+.update-item.premium-update{border-left-color:#4a9eff}
+.update-date{font-size:10px;color:#555;letter-spacing:1px;margin-bottom:4px}
+.update-text{font-size:13px;color:#ccc;line-height:1.5}
+
+/* ── STATS ── */
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px}
+.stat-card{background:#111;border:1px solid #1e1e1e;padding:14px 10px;text-align:center}
+.stat-num{font-size:22px;font-weight:900}
+.stat-label{font-size:9px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+
+/* ── TRACKS ── */
+.track-item{background:#111;border:1px solid #1e1e1e;padding:13px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;cursor:pointer;text-decoration:none;transition:border-color .15s}
+.track-item:hover{border-color:#444}
+.track-icon{width:36px;height:36px;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.track-info{flex:1;min-width:0}
+.track-name{font-size:14px;font-weight:700;color:#fff;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track-meta{font-size:11px;color:#555}
+.track-badge{font-size:9px;font-weight:700;padding:3px 7px;letter-spacing:1px;text-transform:uppercase;flex-shrink:0}
+.badge-master{background:#fff;color:#000}
+.badge-demo{background:#222;color:#777;border:1px solid #333}
+.badge-wip{background:#1a1200;color:#ffaa00;border:1px solid #332200}
+
+/* ── PROGRESS ── */
+.progress-block{background:#111;border:1px solid #1e1e1e;padding:16px;margin-bottom:20px}
+.progress-label{display:flex;justify-content:space-between;margin-bottom:8px}
+.progress-label span{font-size:11px;color:#777}
+.progress-label strong{font-size:11px;color:#fff}
+.progress-bar{height:2px;background:#222}
+.progress-fill{height:100%;background:#fff;transition:width .5s}
+.progress-sessions{font-size:10px;color:#444;margin-top:8px;letter-spacing:1px}
+
+/* ── NOTE ── */
+.note-block{background:#111;border-left:3px solid #fff;padding:14px;margin-bottom:20px}
+.note-from{font-size:9px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.note-text{font-size:13px;color:#bbb;line-height:1.6}
+
+/* ── MEDIA ── */
+.media-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.media-item{background:#111;border:1px solid #1e1e1e;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:border-color .15s}
+.media-item:hover{border-color:#444}
+.media-item .mi-icon{font-size:26px}
+.media-item .mi-label{font-size:9px;color:#555;letter-spacing:2px;text-transform:uppercase}
+.media-item.locked .mi-icon{opacity:.3}
+.media-item.locked .mi-label{color:#333}
+
+/* ── PIANO CARD ── */
+.plan-card{background:#111;border:1px solid #1e1e1e;padding:16px;margin-bottom:8px}
+.plan-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.plan-card-name{font-size:16px;font-weight:900}
+.plan-card-price{font-size:13px;color:#666}
+.plan-feature{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;color:#aaa;border-bottom:1px solid #1a1a1a}
+.plan-feature:last-child{border:none}
+.plan-feature span{font-size:14px}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #1e1e1e;display:flex;height:58px;z-index:200}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border:none;background:none;color:#444;transition:color .15s;padding:0}
+.nav-btn.active{color:#fff}
+.nav-icon{font-size:18px;line-height:1}
+.nav-label{font-size:8px;letter-spacing:1px;text-transform:uppercase}
+
+/* ── PAGES ── */
+.page{display:none}
+.page.active{display:block}
+
+/* ── ADMIN ── */
+#admin-panel{display:none;min-height:100vh;background:#0a0a0a}
+.admin-topbar{background:#fff;color:#000;padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.admin-topbar-title{font-size:13px;font-weight:900;letter-spacing:2px;text-transform:uppercase}
+.btn-back{background:none;border:none;font-size:12px;font-weight:700;cursor:pointer;color:#000;letter-spacing:1px;text-transform:uppercase}
+.admin-content{padding:20px 16px;max-width:600px;margin:0 auto}
+.artist-card{background:#111;border:1px solid #1e1e1e;padding:14px;margin-bottom:8px}
+.artist-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.artist-card-name{font-size:15px;font-weight:700}
+.artist-card-plan{font-size:10px;font-weight:700;padding:2px 8px;letter-spacing:1px;text-transform:uppercase}
+.artist-card-meta{font-size:11px;color:#555}
+.artist-card-actions{display:flex;gap:6px;margin-top:10px}
+.btn-edit{background:#fff;color:#000;border:none;padding:8px 14px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+.btn-del-a{background:none;border:1px solid #2a2a2a;color:#555;padding:8px 10px;font-size:10px;cursor:pointer;letter-spacing:1px;text-transform:uppercase}
+.btn-del-a:hover{border-color:#ff4444;color:#ff4444}
+.add-btn{width:100%;padding:15px;background:#fff;color:#000;border:none;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:14px}
+
+/* ── FORM ── */
+#artist-detail{display:none;min-height:100vh;background:#0a0a0a}
+.detail-content{padding:20px 16px 80px;max-width:600px;margin:0 auto}
+.form-label{font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;display:block;margin-top:14px}
+.form-input{width:100%;padding:12px 14px;background:#111;border:1px solid #222;color:#fff;font-size:14px;outline:none;margin-bottom:0;-webkit-appearance:none;border-radius:0}
+.form-input:focus{border-color:#fff}
+.form-input::placeholder{color:#333}
+.form-select{width:100%;padding:12px 14px;background:#111;border:1px solid #222;color:#fff;font-size:14px;outline:none;-webkit-appearance:none;border-radius:0}
+.form-textarea{width:100%;padding:12px 14px;background:#111;border:1px solid #222;color:#fff;font-size:14px;outline:none;resize:vertical;min-height:80px;border-radius:0}
+.btn-add-track{width:100%;padding:12px;background:#1a1a1a;color:#fff;border:1px solid #2a2a2a;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-top:8px}
+.track-saved{background:#111;border:1px solid #1e1e1e;padding:11px 14px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between}
+.track-saved-info strong{font-size:13px;display:block}
+.track-saved-info span{font-size:10px;color:#555}
+.btn-del-t{background:none;border:none;color:#444;cursor:pointer;font-size:15px;padding:4px 8px}
+.btn-del-t:hover{color:#ff4444}
+.btn-save-main{width:100%;padding:15px;background:#fff;color:#000;border:none;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:16px}
+
+/* ── UPDATE FORM ── */
+.update-saved{background:#111;border-left:3px solid #fff;padding:10px 12px;margin-bottom:5px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.update-saved-text{font-size:12px;color:#bbb;flex:1}
+.update-saved-date{font-size:10px;color:#444;margin-bottom:3px}
+
+/* ── UTILS ── */
+.divider{height:1px;background:#1a1a1a;margin:20px 0}
+.error-border{border-color:#ff4444!important}
+.hidden{display:none!important}
+.wapp-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:#25d366;color:#fff;padding:13px;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;width:100%;margin-top:8px}
+</style>
+</head>
+<body>
+
+<!-- ════ LOGIN ════ -->
+<div id="login-screen">
+  <div class="logo-box"><span>EMOTION</span></div>
+  <div class="logo-sub">STUDIO</div>
+  <div class="login-title">Area Artisti Esclusiva</div>
+  <div class="inp-wrap"><input type="text" id="lu" placeholder="Username" autocomplete="off"/></div>
+  <div class="inp-wrap"><input type="password" id="lp" placeholder="Password"/></div>
+  <button class="btn-primary" onclick="doLogin()">Accedi →</button>
+  <div class="login-hint">
+    Demo artista Pro: <b style="color:#ffaa00">artista</b> / <b style="color:#ffaa00">studio</b><br>
+    Demo artista Premium: <b style="color:#4a9eff">premium</b> / <b style="color:#4a9eff">studio</b><br>
+    Admin: <b style="color:#fff">admin</b> / <b style="color:#fff">admin</b>
+  </div>
+</div>
+
+<!-- ════ ARTIST APP ════ -->
+<div id="app" class="hidden">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-box">E</div>MOTION
+    </div>
+    <div class="topbar-right">
+      <div class="avatar" id="app-avatar">A</div>
+      <button class="btn-logout" onclick="doLogout()">Esci</button>
+    </div>
+  </div>
+
+  <!-- HOME PAGE -->
+  <div id="page-home" class="page active">
+    <div class="content">
+      <div class="welcome-block">
+        <h1 id="app-welcome">Ciao 👋</h1>
+        <p>Il tuo spazio esclusivo</p>
+      </div>
+      <div id="app-plan-badge"></div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num" id="app-n-brani">0</div><div class="stat-label">Brani</div></div>
+        <div class="stat-card"><div class="stat-num" id="app-n-sess">0</div><div class="stat-label">Sessioni</div></div>
+        <div class="stat-card"><div class="stat-num" id="app-n-mesi">0</div><div class="stat-label">Mesi</div></div>
+      </div>
+
+      <!-- SESSION TRACKER -->
+      <div class="section-title">Sessioni questo mese</div>
+      <div class="session-tracker" id="sess-tracker"></div>
+
+      <!-- NEXT SESSION -->
+      <div class="section-title">Prossima sessione</div>
+      <div class="session-next" onclick="bookSession()">
+        <div class="session-icon">🎙️</div>
+        <div class="session-info">
+          <strong id="app-next-sess">—</strong>
+          <span>Clicca per prenotare via WhatsApp</span>
+        </div>
+        <div class="session-cta">Prenota</div>
+      </div>
+
+      <!-- BACHECA -->
+      <div class="section-title">Aggiornamenti</div>
+      <div id="app-updates"></div>
+
+      <!-- NOTE -->
+      <div class="section-title">Nota dal Producer</div>
+      <div class="note-block">
+        <div class="note-from">Da Emotion Studio</div>
+        <div class="note-text" id="app-note">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BRANI PAGE -->
+  <div id="page-brani" class="page">
+    <div class="content">
+      <div class="section-title" style="margin-top:4px">I tuoi brani</div>
+      <div id="app-tracks"></div>
+      <div style="margin-top:20px">
+        <div class="section-title">Progresso percorso</div>
+        <div class="progress-block">
+          <div class="progress-label"><span>Completamento</span><strong id="app-prog-pct">0%</strong></div>
+          <div class="progress-bar"><div class="progress-fill" id="app-prog-fill" style="width:0%"></div></div>
+          <div class="progress-sessions" id="app-prog-sess"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEDIA PAGE -->
+  <div id="page-media" class="page">
+    <div class="content">
+      <div class="section-title" style="margin-top:4px">Media & Documenti</div>
+      <div class="media-grid" id="app-media-grid"></div>
+    </div>
+  </div>
+
+  <!-- PIANO PAGE -->
+  <div id="page-piano" class="page">
+    <div class="content">
+      <div class="section-title" style="margin-top:4px">Il tuo piano</div>
+      <div id="app-plan-detail"></div>
+      <div class="divider"></div>
+      <button class="wapp-btn" onclick="contactStudio()">💬 Contatta lo Studio</button>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="showPage('home',this)">
+      <span class="nav-icon">🏠</span><span class="nav-label">Home</span>
+    </button>
+    <button class="nav-btn" id="nav-brani" onclick="showPage('brani',this)">
+      <span class="nav-icon">🎵</span><span class="nav-label">Brani</span>
+    </button>
+    <button class="nav-btn" id="nav-media" onclick="showPage('media',this)">
+      <span class="nav-icon">📸</span><span class="nav-label">Media</span>
+    </button>
+    <button class="nav-btn" id="nav-piano" onclick="showPage('piano',this)">
+      <span class="nav-icon">⭐</span><span class="nav-label">Piano</span>
+    </button>
+  </div>
+</div>
+
+<!-- ════ ADMIN PANEL ════ -->
+<div id="admin-panel">
+  <div class="admin-topbar">
+    <div class="admin-topbar-title">⚡ Emotion Studio Admin</div>
+    <button class="btn-back" onclick="doLogout()">Esci</button>
+  </div>
+  <div class="admin-content">
+    <div class="section-title">Artisti attivi</div>
+    <div id="admin-artist-list"></div>
+    <button class="add-btn" onclick="openDetail(null)">+ Aggiungi Artista</button>
+    <div class="divider"></div>
+    <div class="section-title">Statistiche Studio</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num" id="adm-n-art">0</div><div class="stat-label">Artisti</div></div>
+      <div class="stat-card"><div class="stat-num" id="adm-n-pro">0</div><div class="stat-label">Pro</div></div>
+      <div class="stat-card"><div class="stat-num" id="adm-n-prem">0</div><div class="stat-label">Premium</div></div>
+    </div>
+    <div class="stats-row" style="margin-top:8px">
+      <div class="stat-card"><div class="stat-num" id="adm-n-brani">0</div><div class="stat-label">Brani tot.</div></div>
+      <div class="stat-card"><div class="stat-num" id="adm-rev">€0</div><div class="stat-label">Revenue/mese</div></div>
+      <div class="stat-card"><div class="stat-num" id="adm-n-sess">0</div><div class="stat-label">Sessioni</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ARTIST DETAIL FORM ════ -->
+<div id="artist-detail">
+  <div class="admin-topbar">
+    <div class="admin-topbar-title" id="detail-title">Artista</div>
+    <button class="btn-back" onclick="closeDetail()">← Indietro</button>
+  </div>
+  <div class="detail-content">
+
+    <div class="section-title">Accesso</div>
+    <label class="form-label">Nome artista</label>
+    <input class="form-input" id="d-name" placeholder="es. Alex Misan"/>
+    <label class="form-label">Username login</label>
+    <input class="form-input" id="d-user" placeholder="es. alexmisan" autocomplete="off"/>
+    <label class="form-label">Password</label>
+    <input class="form-input" id="d-pass" placeholder="password" type="password"/>
+    <label class="form-label">Piano abbonamento</label>
+    <select class="form-select" id="d-plan">
+      <option value="pro">⭐ Pro — €350/mese</option>
+      <option value="premium">💎 Premium — €550/mese</option>
+    </select>
+    <label class="form-label">Numero WhatsApp (con prefisso, es. 393460366511)</label>
+    <input class="form-input" id="d-wapp" placeholder="393460366511"/>
+
+    <div class="divider"></div>
+    <div class="section-title">Sessioni & Progresso</div>
+    <label class="form-label">Prossima sessione</label>
+    <input class="form-input" id="d-sess-next" placeholder="es. Lunedì 2 Giugno — ore 15:00"/>
+    <label class="form-label">Sessioni usate questo mese</label>
+    <input class="form-input" id="d-sess-used" placeholder="0" type="number" min="0" max="4"/>
+    <label class="form-label">Sessioni totali completate</label>
+    <input class="form-input" id="d-sess-done" placeholder="0" type="number"/>
+    <label class="form-label">Sessioni totali previste</label>
+    <input class="form-input" id="d-sess-tot" placeholder="18" type="number"/>
+    <label class="form-label">Progresso percorso (%)</label>
+    <input class="form-input" id="d-progress" placeholder="0" type="number" min="0" max="100"/>
+    <label class="form-label">Nota dal producer</label>
+    <textarea class="form-textarea" id="d-note" placeholder="Scrivi una nota per l'artista..."></textarea>
+
+    <div class="divider"></div>
+    <div class="section-title">Brani</div>
+    <label class="form-label">Titolo brano</label>
+    <input class="form-input" id="t-name" placeholder="es. Cercami"/>
+    <label class="form-label">Link Google Drive</label>
+    <input class="form-input" id="t-link" placeholder="https://drive.google.com/..."/>
+    <label class="form-label">Stato</label>
+    <select class="form-select" id="t-status">
+      <option value="master">✅ Master — Pronto</option>
+      <option value="demo">🎵 Demo</option>
+      <option value="wip">🔧 Work in Progress</option>
+    </select>
+    <button class="btn-add-track" onclick="addTrack()">+ Aggiungi Brano</button>
+    <div id="saved-tracks" style="margin-top:8px"></div>
+
+    <div class="divider"></div>
+    <div class="section-title">Aggiornamenti bacheca</div>
+    <label class="form-label">Nuovo aggiornamento</label>
+    <textarea class="form-textarea" id="u-text" placeholder="es. Il tuo brano Cercami è pronto per il mastering!" style="min-height:60px"></textarea>
+    <button class="btn-add-track" onclick="addUpdate()" style="margin-top:6px">+ Pubblica Aggiornamento</button>
+    <div id="saved-updates" style="margin-top:8px"></div>
+
+    <div class="divider"></div>
+    <div class="section-title">Media links</div>
+    <label class="form-label">Link foto (Google Drive folder)</label>
+    <input class="form-input" id="d-foto" placeholder="https://drive.google.com/..."/>
+    <label class="form-label">Link video/reels (Google Drive folder)</label>
+    <input class="form-input" id="d-video" placeholder="https://drive.google.com/..."/>
+    <label class="form-label">Link contratto (PDF Drive)</label>
+    <input class="form-input" id="d-contratto" placeholder="https://drive.google.com/..."/>
+
+    <button class="btn-save-main" onclick="saveArtist()">💾 Salva Artista</button>
+  </div>
+</div>
+
+<script>
+// ── PIANI ──────────────────────────────────────────────────────────
+const PLANS = {
+  pro: {
+    name:'Pro', price:'€350/mese', color:'#ffaa00',
+    features:[
+      {icon:'🎙️', text:'2 sessioni rec / mix / master al mese'},
+      {icon:'✍️', text:'1 sessione di scrittura con songwriter'},
+      {icon:'📸', text:'1 shooting fotografico'},
+      {icon:'🎬', text:'1 video reel per social'},
+      {icon:'🎨', text:'Brand identity social & direzione artistica'}
+    ],
+    sessMax:2
+  },
+  premium: {
+    name:'Premium', price:'€550/mese', color:'#4a9eff',
+    features:[
+      {icon:'🎙️', text:'4 sessioni rec / mix / master al mese'},
+      {icon:'✍️', text:'1 sessione di scrittura con songwriter'},
+      {icon:'📸', text:'2 shooting fotografici'},
+      {icon:'🎬', text:'1 video reel per social'},
+      {icon:'🎨', text:'Brand identity social & direzione artistica'}
+    ],
+    sessMax:4
+  }
+};
+
+// ── DEFAULT DATA ────────────────────────────────────────────────────
+const DEFAULTS = [
+  {
+    name:'Alex Misan', user:'artista', pass:'studio', plan:'pro', wapp:'393460366511',
+    sessNext:'Lunedì 2 Giugno — ore 15:00', sessUsed:1, sessDone:12, sessTot:18, progress:65,
+    note:'Ottimo lavoro nell\'ultima sessione! Stiamo andando nella direzione giusta. Nella prossima ci concentriamo sul bridge e la melodia del ritornello.',
+    tracks:[
+      {name:'Cercami', link:'#', status:'master'},
+      {name:'La vita splendida', link:'#', status:'demo'},
+      {name:'Nuovo 2026', link:'#', status:'wip'}
+    ],
+    updates:[
+      {date:'26 Mag 2026', text:'🎉 Il brano "Cercami" è stato approvato per la distribuzione!'},
+      {date:'20 Mag 2026', text:'Mix di "La vita splendida" completato. Ascolta e dimmi cosa ne pensi.'}
+    ],
+    foto:'#', video:'#', contratto:'#'
+  },
+  {
+    name:'Jahris', user:'premium', pass:'studio', plan:'premium', wapp:'393460366511',
+    sessNext:'Venerdì 6 Giugno — ore 16:00', sessUsed:3, sessDone:15, sessTot:18, progress:80,
+    note:'Bel percorso! Il mix del nuovo pezzo è quasi pronto. Manca solo il mastering finale.',
+    tracks:[
+      {name:'Rookie', link:'#', status:'master'},
+      {name:'5000', link:'#', status:'master'},
+      {name:'Singolo Estate', link:'#', status:'wip'}
+    ],
+    updates:[
+      {date:'25 Mag 2026', text:'💎 Shooting fotografico prenotato per il 10 Giugno. Prepara i look!'},
+      {date:'18 Mag 2026', text:'Rookie ha superato 10.000 stream su Spotify! 🚀'}
+    ],
+    foto:'#', video:'#', contratto:'#'
+  }
+];
+
+// ── STORAGE ──────────────────────────────────────────────────────────
+function loadArtists(){
+  try{ const r=localStorage.getItem('es_v2'); return r?JSON.parse(r):JSON.parse(JSON.stringify(DEFAULTS)); }
+  catch(e){ return JSON.parse(JSON.stringify(DEFAULTS)); }
+}
+function saveArtists(arr){ try{localStorage.setItem('es_v2',JSON.stringify(arr));}catch(e){} }
+
+// ── STATE ─────────────────────────────────────────────────────────────
+let currentUser=null, currentArtistIdx=null, tempTracks=[], tempUpdates=[];
+
+// ── LOGIN ──────────────────────────────────────────────────────────────
+function doLogin(){
+  const u=document.getElementById('lu').value.trim();
+  const p=document.getElementById('lp').value.trim();
+  if(u==='admin'&&p==='admin'){
+    currentUser={type:'admin'};
+    hide('login-screen'); show('admin-panel');
+    renderAdmin(); return;
+  }
+  const artists=loadArtists();
+  const idx=artists.findIndex(a=>a.user===u&&a.pass===p);
+  if(idx>=0){
+    currentUser={type:'artist',idx};
+    hide('login-screen'); show('app');
+    renderArtistApp(artists[idx]);
+  } else {
+    ['lu','lp'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.classList.add('error-border');
+      setTimeout(()=>el.classList.remove('error-border'),700);
+    });
+  }
+}
+document.getElementById('lp').onkeydown=e=>{if(e.key==='Enter')doLogin()};
+document.getElementById('lu').onkeydown=e=>{if(e.key==='Enter')doLogin()};
+
+function doLogout(){
+  currentUser=null;
+  ['app','admin-panel','artist-detail'].forEach(hide);
+  show('login-screen');
+  document.getElementById('lu').value='';
+  document.getElementById('lp').value='';
+}
+
+// ── ARTIST APP ──────────────────────────────────────────────────────────
+function renderArtistApp(a){
+  const plan=PLANS[a.plan];
+  document.getElementById('app-welcome').textContent=`Ciao, ${a.name} 👋`;
+  document.getElementById('app-avatar').textContent=a.name[0].toUpperCase();
+
+  // Badge piano
+  const badgeClass=a.plan==='premium'?'plan-premium':'plan-pro';
+  const badgeIcon=a.plan==='premium'?'💎':'⭐';
+  document.getElementById('app-plan-badge').innerHTML=
+    `<div class="plan-badge ${badgeClass}">${badgeIcon} ${plan.name} — ${plan.price}</div>`;
+
+  // Stats
+  document.getElementById('app-n-brani').textContent=a.tracks.length;
+  document.getElementById('app-n-sess').textContent=a.sessDone;
+  document.getElementById('app-n-mesi').textContent=Math.ceil(a.sessDone/plan.sessMax)||1;
+
+  // Session tracker
+  const trackerColor=a.plan==='premium'?'premium':'pro';
+  let dotsHTML='';
+  for(let i=0;i<plan.sessMax;i++){
+    dotsHTML+=`<div class="dot ${i<a.sessUsed?trackerColor:''}"></div>`;
+  }
+  document.getElementById('sess-tracker').innerHTML=`
+    <div class="tracker-title">Sessioni usate questo mese</div>
+    <div class="tracker-row">
+      <div class="tracker-label">Rec / Mix / Master</div>
+      <div class="tracker-dots">${dotsHTML}</div>
+    </div>
+    <div class="tracker-extra">${a.sessUsed} di ${plan.sessMax} sessioni usate · ${plan.sessMax-a.sessUsed} disponibili</div>`;
+
+  // Next session
+  document.getElementById('app-next-sess').textContent=a.sessNext||'Da prenotare';
+
+  // Updates
+  const updEl=document.getElementById('app-updates');
+  updEl.innerHTML=a.updates&&a.updates.length
+    ? a.updates.map(u=>`
+        <div class="update-item">
+          <div class="update-date">${u.date}</div>
+          <div class="update-text">${u.text}</div>
+        </div>`).join('')
+    : '<div style="color:#444;font-size:13px;padding:8px 0">Nessun aggiornamento ancora.</div>';
+
+  // Note
+  document.getElementById('app-note').textContent=a.note||'—';
+
+  // Brani (page)
+  const icons={master:'✅',demo:'🎵',wip:'🔧'};
+  const badges={master:'badge-master',demo:'badge-demo',wip:'badge-wip'};
+  const labels={master:'Master',demo:'Demo',wip:'WIP'};
+  const tracksEl=document.getElementById('app-tracks');
+  tracksEl.innerHTML=a.tracks.length
+    ? a.tracks.map(t=>`
+        <a class="track-item" href="${t.link}" target="_blank" style="text-decoration:none">
+          <div class="track-icon">${icons[t.status]}</div>
+          <div class="track-info">
+            <div class="track-name">${t.name}</div>
+            <div class="track-meta">${t.link&&t.link!=='#'?'Apri su Google Drive →':'Link non ancora disponibile'}</div>
+          </div>
+          <span class="track-badge ${badges[t.status]}">${labels[t.status]}</span>
+        </a>`).join('')
+    : '<div style="color:#444;font-size:13px;padding:8px 0">Nessun brano ancora caricato.</div>';
+
+  // Progress
+  document.getElementById('app-prog-pct').textContent=a.progress+'%';
+  document.getElementById('app-prog-fill').style.width=a.progress+'%';
+  document.getElementById('app-prog-sess').textContent=`SESSIONI COMPLETATE: ${a.sessDone} DI ${a.sessTot}`;
+
+  // Media
+  const mediaItems=[
+    {icon:'📸',label:'Foto',link:a.foto},
+    {icon:'🎬',label:'Video',link:a.video},
+    {icon:'📄',label:'Contratto',link:a.contratto},
+    {icon:'🧾',label:'Fatture',link:'#'}
+  ];
+  document.getElementById('app-media-grid').innerHTML=mediaItems.map(m=>{
+    const locked=!m.link||m.link==='#';
+    return `<div class="media-item${locked?' locked':''}" onclick="${locked?'alert(\'Sezione non ancora disponibile\')':'window.open(\''+m.link+'\',\'_blank\')'}">
+      <div class="mi-icon">${m.icon}</div>
+      <div class="mi-label">${m.label}${locked?' 🔒':''}</div>
+    </div>`;
+  }).join('');
+
+  // Piano detail
+  document.getElementById('app-plan-detail').innerHTML=`
+    <div class="plan-card">
+      <div class="plan-card-header">
+        <div class="plan-card-name">${a.plan==='premium'?'💎':'⭐'} Piano ${plan.name}</div>
+        <div class="plan-card-price">${plan.price}</div>
+      </div>
+      ${plan.features.map(f=>`<div class="plan-feature"><span>${f.icon}</span>${f.text}</div>`).join('')}
+    </div>`;
+}
+
+function showPage(name, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+}
+
+function bookSession(){
+  const artists=loadArtists();
+  const a=currentUser&&currentUser.type==='artist'?artists[currentUser.idx]:null;
+  const num=a&&a.wapp?a.wapp:'393460366511';
+  const msg=encodeURIComponent(`Ciao! Sono ${a?a.name:'un artista'} e vorrei prenotare una sessione.`);
+  window.open(`https://wa.me/${num}?text=${msg}`,'_blank');
+}
+
+function contactStudio(){
+  window.open('https://wa.me/393460366511?text=Ciao!%20Vorrei%20sapere%20di%20pi%C3%B9%20sugli%20abbonamenti%20Emotion%20Studio.','_blank');
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────
+function renderAdmin(){
+  const artists=loadArtists();
+  let nPro=0, nPrem=0, nBrani=0, nSess=0, rev=0;
+  document.getElementById('admin-artist-list').innerHTML=artists.map((a,i)=>{
+    if(a.plan==='pro'){nPro++;rev+=350;} else {nPrem++;rev+=550;}
+    nBrani+=a.tracks.length; nSess+=a.sessDone;
+    const planLabel=a.plan==='premium'?'💎 Premium':'⭐ Pro';
+    const planColor=a.plan==='premium'?'#4a9eff':'#ffaa00';
+    return `<div class="artist-card">
+      <div class="artist-card-top">
+        <div class="artist-card-name">${a.name}</div>
+        <span class="artist-card-plan" style="background:${planColor}20;color:${planColor};border:1px solid ${planColor}40">${planLabel}</span>
+      </div>
+      <div class="artist-card-meta">${a.tracks.length} brani · ${a.sessUsed}/${PLANS[a.plan].sessMax} sess. questo mese · ${a.progress}% percorso</div>
+      <div class="artist-card-actions">
+        <button class="btn-edit" onclick="openDetail(${i})">Gestisci</button>
+        <button class="btn-del-a" onclick="deleteArtist(${i})">Elimina</button>
+      </div>
+    </div>`;
+  }).join('')||'<div style="color:#444;font-size:13px;padding:16px 0">Nessun artista. Aggiungine uno!</div>';
+  document.getElementById('adm-n-art').textContent=artists.length;
+  document.getElementById('adm-n-pro').textContent=nPro;
+  document.getElementById('adm-n-prem').textContent=nPrem;
+  document.getElementById('adm-n-brani').textContent=nBrani;
+  document.getElementById('adm-rev').textContent='€'+rev;
+  document.getElementById('adm-n-sess').textContent=nSess;
+}
+
+function deleteArtist(i){
+  if(!confirm('Eliminare questo artista?')) return;
+  const artists=loadArtists(); artists.splice(i,1); saveArtists(artists); renderAdmin();
+}
+
+function openDetail(idx){
+  currentArtistIdx=idx;
+  hide('admin-panel'); show('artist-detail');
+  const artists=loadArtists();
+  if(idx!==null&&artists[idx]){
+    const a=artists[idx];
+    document.getElementById('detail-title').textContent=a.name;
+    document.getElementById('d-name').value=a.name;
+    document.getElementById('d-user').value=a.user;
+    document.getElementById('d-pass').value=a.pass;
+    document.getElementById('d-plan').value=a.plan;
+    document.getElementById('d-wapp').value=a.wapp||'';
+    document.getElementById('d-sess-next').value=a.sessNext||'';
+    document.getElementById('d-sess-used').value=a.sessUsed||0;
+    document.getElementById('d-sess-done').value=a.sessDone||0;
+    document.getElementById('d-sess-tot').value=a.sessTot||18;
+    document.getElementById('d-progress').value=a.progress||0;
+    document.getElementById('d-note').value=a.note||'';
+    document.getElementById('d-foto').value=a.foto||'';
+    document.getElementById('d-video').value=a.video||'';
+    document.getElementById('d-contratto').value=a.contratto||'';
+    tempTracks=[...a.tracks];
+    tempUpdates=[...(a.updates||[])];
+  } else {
+    document.getElementById('detail-title').textContent='Nuovo Artista';
+    ['d-name','d-user','d-pass','d-wapp','d-sess-next','d-sess-used','d-sess-done','d-sess-tot','d-progress','d-note','d-foto','d-video','d-contratto'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('d-plan').value='pro';
+    tempTracks=[]; tempUpdates=[];
+  }
+  renderSavedTracks(); renderSavedUpdates();
+}
+
+function addTrack(){
+  const name=document.getElementById('t-name').value.trim();
+  const link=document.getElementById('t-link').value.trim();
+  const status=document.getElementById('t-status').value;
+  if(!name){errShake('t-name');return;}
+  tempTracks.push({name,link:link||'#',status});
+  document.getElementById('t-name').value='';
+  document.getElementById('t-link').value='';
+  renderSavedTracks();
+}
+
+function renderSavedTracks(){
+  const labels={master:'✅ Master',demo:'🎵 Demo',wip:'🔧 WIP'};
+  document.getElementById('saved-tracks').innerHTML=tempTracks.map((t,i)=>`
+    <div class="track-saved">
+      <div class="track-saved-info">
+        <strong>${t.name}</strong>
+        <span>${labels[t.status]} ${t.link&&t.link!=='#'?'· Drive ✓':'· Nessun link'}</span>
+      </div>
+      <button class="btn-del-t" onclick="removeTrack(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeTrack(i){tempTracks.splice(i,1);renderSavedTracks();}
+
+function addUpdate(){
+  const text=document.getElementById('u-text').value.trim();
+  if(!text){errShake('u-text');return;}
+  const now=new Date();
+  const months=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const date=`${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  tempUpdates.unshift({date,text});
+  document.getElementById('u-text').value='';
+  renderSavedUpdates();
+}
+
+function renderSavedUpdates(){
+  document.getElementById('saved-updates').innerHTML=tempUpdates.map((u,i)=>`
+    <div class="update-saved">
+      <div style="flex:1">
+        <div class="update-saved-date">${u.date}</div>
+        <div class="update-saved-text">${u.text}</div>
+      </div>
+      <button class="btn-del-t" onclick="removeUpdate(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeUpdate(i){tempUpdates.splice(i,1);renderSavedUpdates();}
+
+function saveArtist(){
+  const name=document.getElementById('d-name').value.trim();
+  const user=document.getElementById('d-user').value.trim();
+  if(!name||!user){if(!name)errShake('d-name');if(!user)errShake('d-user');return;}
+  const artists=loadArtists();
+  const newA={
+    name,user,
+    pass:document.getElementById('d-pass').value.trim()||'studio',
+    plan:document.getElementById('d-plan').value,
+    wapp:document.getElementById('d-wapp').value.trim(),
+    sessNext:document.getElementById('d-sess-next').value.trim(),
+    sessUsed:parseInt(document.getElementById('d-sess-used').value)||0,
+    sessDone:parseInt(document.getElementById('d-sess-done').value)||0,
+    sessTot:parseInt(document.getElementById('d-sess-tot').value)||18,
+    progress:parseInt(document.getElementById('d-progress').value)||0,
+    note:document.getElementById('d-note').value.trim(),
+    tracks:tempTracks,
+    updates:tempUpdates,
+    foto:document.getElementById('d-foto').value.trim(),
+    video:document.getElementById('d-video').value.trim(),
+    contratto:document.getElementById('d-contratto').value.trim()
+  };
+  if(currentArtistIdx!==null)artists[currentArtistIdx]=newA;
+  else artists.push(newA);
+  saveArtists(artists); closeDetail();
+}
+
+function closeDetail(){hide('artist-detail');show('admin-panel');renderAdmin();}
+
+// ── UTILS ──────────────────────────────────────────────────────────────
+function show(id){document.getElementById(id).classList.remove('hidden');document.getElementById(id).style.display='block';}
+function hide(id){document.getElementById(id).style.display='none';}
+function errShake(id){
+  const el=document.getElementById(id);
+  el.classList.add('error-border');
+  setTimeout(()=>el.classList.remove('error-border'),700);
+}
+</script>
+</body>
+</html>
