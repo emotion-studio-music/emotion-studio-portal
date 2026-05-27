@@ -49,13 +49,16 @@
 
   // Init: load from Firebase and store locally as cache
   window.initDB = async function() {
-    showLoader(true);
-    const artists = await window.dbLoadArtists();
-    if(artists !== null) {
-      localStorage.setItem('es_v5', JSON.stringify(artists));
-      localStorage.setItem('es_source', 'firebase');
-    }
-    showLoader(false);
+    const loader=document.getElementById('db-loader');
+    if(loader)loader.style.display='flex';
+    try{
+      const artists = await window.dbLoadArtists();
+      if(artists !== null && artists.length > 0) {
+        localStorage.setItem('es_v5', JSON.stringify(artists));
+        localStorage.setItem('es_source', 'firebase');
+      }
+    }catch(e){console.error('Init error:',e);}
+    if(loader)loader.style.display='none';
   };
 
   // Auto-init when DOM ready
@@ -68,7 +71,7 @@
 body{font-family:'Inter','SF Pro Display','Helvetica Neue',Arial,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;overflow-x:hidden}
 
 /* LOGIN */
-#login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+#login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:#0a0a0a}
 .logo-box{border:3px solid #fff;padding:12px 28px;margin-bottom:8px;border-radius:4px}
 .logo-box span{font-size:32px;font-weight:900;letter-spacing:-1px;text-transform:uppercase}
 .logo-sub{font-size:13px;font-weight:700;letter-spacing:6px;margin-bottom:40px}
@@ -344,7 +347,7 @@ body{font-family:'Inter','SF Pro Display','Helvetica Neue',Arial,sans-serif;back
 <body>
 
 <!-- LOGIN -->
-<div id="db-loader" style="position:fixed;inset:0;background:#0a0a0a;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+<div id="db-loader" style="position:fixed;inset:0;background:#0a0a0a;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px">
   <div class="logo-box" style="border:3px solid #FF6B00"><span style="color:#FF6B00">EMOTION</span></div>
   <div style="font-size:11px;color:#555;letter-spacing:3px;text-transform:uppercase">Caricamento...</div>
   <div style="width:40px;height:40px;border:3px solid #1a1a1a;border-top-color:#FF6B00;border-radius:50%;animation:spin 0.8s linear infinite"></div>
@@ -357,7 +360,7 @@ body{font-family:'Inter','SF Pro Display','Helvetica Neue',Arial,sans-serif;back
   <div class="inp-wrap"><input type="text" id="lu" placeholder="Username" autocomplete="off"/></div>
   <div class="inp-wrap"><input type="password" id="lp" placeholder="Password"/></div>
   <button class="btn-primary" onclick="doLogin()">Accedi →</button>
-  <div class="login-hint">Demo: <b style="color:#FF6B00">artista</b> / <b style="color:#FF6B00">studio</b> &nbsp;|&nbsp; Admin: <b style="color:#fff">admin</b> / <b style="color:#fff">admin</b></div>
+
 </div>
 
 <!-- ARTIST APP -->
@@ -762,7 +765,20 @@ const DEFAULTS=[
 ];
 function showLoader(v){
   const el=document.getElementById('db-loader');
-  if(el)el.style.display=v?'flex':'none';
+  if(!el)return;
+  el.style.display=v?'flex':'none';
+  // When hiding loader, make sure login screen is visible and correct
+  if(!v){
+    const login=document.getElementById('login-screen');
+    const app=document.getElementById('app');
+    const admin=document.getElementById('admin-panel');
+    const detail=document.getElementById('artist-detail');
+    // Only show login if nothing else is showing
+    const anyVisible=[app,admin,detail].some(e=>e&&e.style.display==='block');
+    if(!anyVisible&&login){
+      login.style.display='flex';
+    }
+  }
 }
 
 function loadArtists(){
@@ -878,14 +894,22 @@ document.getElementById('lp').onkeydown=e=>{if(e.key==='Enter')doLogin();};
 document.getElementById('lu').onkeydown=e=>{if(e.key==='Enter')doLogin();};
 function doLogout(){
   currentUser=null;
-  ['app','admin-panel','artist-detail'].forEach(hide);
-  show('login-screen');
+  // Hide everything
+  ['app','admin-panel','artist-detail','db-loader'].forEach(hide);
+  // Reset nav state
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const firstNav=document.querySelector('.nav-btn');
+  if(firstNav)firstNav.classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const firstPage=document.getElementById('page-home');
+  if(firstPage)firstPage.classList.add('active');
+  // Show login
+  const login=document.getElementById('login-screen');
+  if(login){login.style.cssText='display:flex;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:#0a0a0a';}
   document.getElementById('lu').value='';
   document.getElementById('lp').value='';
-  // Refresh data from Firebase when returning to login
-  if(window.dbLoadArtists){
-    refreshFromFirebase();
-  }
+  // Refresh from Firebase in background
+  if(window.dbLoadArtists) refreshFromFirebase();
 }
 
 // ── RENDER ARTIST ─────────────────────────────────────────────────
@@ -1516,8 +1540,18 @@ function renewArtist(idx){
 }
 function closeDetail(){hide('artist-detail');show('admin-panel');renderAdmin();}
 
-function show(id){const el=document.getElementById(id);el.classList.remove('hidden');el.style.display='block';}
-function hide(id){document.getElementById(id).style.display='none';}
+function show(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.classList.remove('hidden');
+  // Use flex for login screen, block for others
+  el.style.display=(id==='login-screen')?'flex':'block';
+}
+function hide(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.style.display='none';
+}
 function errShake(id){const el=document.getElementById(id);el.classList.add('error-border');setTimeout(()=>el.classList.remove('error-border'),700);}
 </script>
 </body>
