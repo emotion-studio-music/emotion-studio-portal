@@ -5,6 +5,14 @@ export interface ArtistLinks {
   youtube?: string;
 }
 
+export interface NextSession {
+  at: string;   // data e ora locali, formato "2026-11-03T18:00" ('' = nessuna)
+  type: string; // Registrazione, Mix, Mastering, Produzione, Consulenza ('' = non indicato)
+  note: string; // nota facoltativa per l'artista
+}
+
+export const emptySession: NextSession = { at: '', type: '', note: '' };
+
 export interface Artist {
   id: string;
   stageName: string;
@@ -14,7 +22,7 @@ export interface Artist {
   genres: string[];
   phone: string;
   links: ArtistLinks;
-  nextSession: string;
+  nextSession: NextSession;
   memberUids: string[];
   memberEmails: string[];
   active: boolean;

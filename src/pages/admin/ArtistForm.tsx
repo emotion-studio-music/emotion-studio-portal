@@ -11,11 +11,13 @@ import { generatePassword } from '../../lib/password';
 import { compressImage } from '../../lib/image';
 import { errorMessage } from '../../lib/errors';
 import { Loading } from '../../components/Loading';
+import { SessionPicker } from '../../components/SessionPicker';
+import { emptySession } from '../../lib/types';
 import { IconArrowLeft, IconCopy, IconEye, IconImage } from '../../components/Icons';
 
 const empty: ArtistInput = {
   stageName: '', realName: '', bio: '', photo: null, genres: [], phone: '',
-  links: { instagram: '', spotify: '', tiktok: '', youtube: '' }, nextSession: '',
+  links: { instagram: '', spotify: '', tiktok: '', youtube: '' }, nextSession: emptySession,
 };
 
 interface Created { id: string; stageName: string; email: string; password: string; phone: string }
@@ -144,10 +146,7 @@ export function ArtistForm() {
 
         <section className="card card-pad form">
           <h2 className="h2">Prossima sessione</h2>
-          <label className="field"><span>Testo mostrato nella home dell’artista</span>
-            <textarea className="textarea" style={{ minHeight: 80 }} value={form.nextSession} onChange={(e) => set('nextSession', e.target.value)} placeholder="Giovedì 5 novembre ore 15:00 · Registrazione voci" />
-            <small>Lascia vuoto per nasconderlo.</small>
-          </label>
+          <SessionPicker value={form.nextSession} onChange={(v) => set('nextSession', v)} />
         </section>
 
         <section className="card card-pad form">

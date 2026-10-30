@@ -2,6 +2,41 @@ import { Link } from 'react-router-dom';
 import { useArtist, useSettings } from '../../lib/data';
 import { Loading } from '../../components/Loading';
 import { IconArrowLeft, IconCalendar } from '../../components/Icons';
+import type { NextSession } from '../../lib/types';
+import { isUpcoming, longDate, monthShort, parseAt, relativeDay, timeOf } from '../../lib/dates';
+
+function NextSessionCard({ session }: { session: NextSession }) {
+  const d = parseAt(session.at);
+  // Vecchio formato (solo testo) o sessione senza data
+  if (!d) {
+    if (!session.note) return null;
+    return (
+      <div className="card session-card">
+        <div className="session-icon"><IconCalendar /></div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span className="tiny muted" style={{ fontWeight: 500 }}>Prossima sessione</span>
+          <span style={{ fontSize: 16, fontWeight: 600, whiteSpace: 'pre-line' }}>{session.note}</span>
+        </div>
+      </div>
+    );
+  }
+  if (!isUpcoming(d)) return null;
+  return (
+    <div className="card session-card">
+      <div className="session-date" aria-hidden="true">
+        <small>{monthShort(d)}</small>
+        <strong>{d.getDate()}</strong>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <span className="tiny muted" style={{ fontWeight: 500 }}>Prossima sessione</span>
+        <span style={{ fontSize: 16, fontWeight: 600 }}>
+          {relativeDay(d)} ore {timeOf(d)}{session.type ? ` · ${session.type}` : ''}
+        </span>
+        <span className="small muted">{longDate(d)}{session.note ? ` — ${session.note}` : ''}</span>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   artistId: string;
@@ -38,15 +73,7 @@ export function ArtistHome({ artistId, preview }: Props) {
       </header>
 
       <div className="stack">
-        {artist.nextSession && (
-          <div className="card session-card">
-            <div className="session-icon"><IconCalendar /></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span className="tiny muted" style={{ fontWeight: 500 }}>Prossima sessione</span>
-              <span style={{ fontSize: 16, fontWeight: 600, whiteSpace: 'pre-line' }}>{artist.nextSession}</span>
-            </div>
-          </div>
-        )}
+        <NextSessionCard session={artist.nextSession} />
 
         {settings.welcomeText && (
           <p className="small muted" style={{ margin: 0, whiteSpace: 'pre-line' }}>{settings.welcomeText}</p>

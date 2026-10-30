@@ -209,7 +209,7 @@ button { font: inherit; color: inherit; }
   width: 248px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 24px 16px;
   display: flex; flex-direction: column; gap: 28px; position: sticky; top: 0; height: 100vh;
 }
-.sidebar img { height: 26px; width: auto; margin: 0 8px; }
+.sidebar img { height: 26px; width: auto; margin: 0 8px; align-self: flex-start; object-fit: contain; }
 .side-nav { display: flex; flex-direction: column; gap: 4px; }
 .side-link {
   display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-sm);
@@ -287,3 +287,44 @@ button { font: inherit; color: inherit; }
 .seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
 .seg button { border: none; background: transparent; padding: 8px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; min-height: 40px; }
 .seg button[aria-pressed='true'] { background: var(--surface-2); color: var(--text); }
+
+/* Scelta rapida della sessione */
+.pick-row {
+  display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; margin: 0 -2px;
+  scroll-snap-type: x proximity; scrollbar-width: thin;
+}
+.pick-wrap { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pick {
+  min-height: 44px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: var(--bg); color: var(--text);
+  font-weight: 600; font-size: 14px; cursor: pointer; font-variant-numeric: tabular-nums;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.pick:hover { border-color: var(--muted); }
+.pick[aria-pressed='true'], .pick[data-active='true'] { background: var(--accent); border-color: var(--accent); color: #0A0A0B; }
+.pick-day {
+  flex: 0 0 auto; width: 62px; min-height: 76px; padding: 8px 0; border-radius: var(--r-md);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  scroll-snap-align: start;
+}
+.pick-day small { font-size: 11px; font-weight: 600; color: var(--muted); line-height: 1.2; }
+.pick-day strong { font-family: var(--font-display); font-size: 22px; font-weight: 800; line-height: 1.1; }
+.pick-day[aria-pressed='true'] small, .pick-day[data-active='true'] small { color: #0A0A0B; }
+.pick-other { position: relative; }
+.pick-other input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.pick-other input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+.pick-time { width: 120px; min-height: 44px; padding: 8px 12px; border-radius: 999px; }
+.session-preview {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--line); font-size: 14px;
+}
+.session-preview strong { color: var(--amber); font-weight: 600; }
+
+/* Riquadro sessione nella home artista */
+.session-date {
+  width: 56px; height: 62px; border-radius: 12px; flex-shrink: 0;
+  background: var(--grad); color: #0A0A0B;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.session-date small { font-size: 12px; font-weight: 700; line-height: 1; }
+.session-date strong { font-family: var(--font-display); font-size: 26px; font-weight: 850; line-height: 1; margin-top: 2px; }

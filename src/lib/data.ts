@@ -3,7 +3,14 @@ import {
   collection, doc, onSnapshot, orderBy, query, setDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { emptySettings, type Artist, type StudioSettings } from './types';
+import { emptySession, emptySettings, type Artist, type NextSession, type StudioSettings } from './types';
+
+// Compatibile anche con la vecchia versione, dove la sessione era solo testo.
+function toSession(v: unknown): NextSession {
+  if (typeof v === 'string') return { ...emptySession, note: v };
+  if (v && typeof v === 'object') return { ...emptySession, ...(v as Partial<NextSession>) };
+  return emptySession;
+}
 
 function toArtist(id: string, d: Record<string, unknown>): Artist {
   return {
@@ -15,7 +22,7 @@ function toArtist(id: string, d: Record<string, unknown>): Artist {
     genres: (d.genres as string[]) ?? [],
     phone: (d.phone as string) ?? '',
     links: (d.links as Artist['links']) ?? {},
-    nextSession: (d.nextSession as string) ?? '',
+    nextSession: toSession(d.nextSession),
     memberUids: (d.memberUids as string[]) ?? [],
     memberEmails: (d.memberEmails as string[]) ?? [],
     active: (d.active as boolean) ?? true,
