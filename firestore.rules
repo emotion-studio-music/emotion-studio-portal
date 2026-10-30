@@ -1,0 +1,93 @@
+rules_version = '2';
+// Regole di sicurezza Emotion Studio.
+// Admin  = chi ha un documento in /admins/{uid} (creato a mano una volta sola).
+// Artista = utente il cui uid è in memberUids di un artista attivo.
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(db)/documents/admins/$(request.auth.uid));
+    }
+    function artistData(a) { return get(/databases/$(db)/documents/artists/$(a)).data; }
+    function isMember(a) {
+      let d = artistData(a);
+      return signedIn() && d.active == true && request.auth.uid in d.memberUids;
+    }
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // Elenco admin: ognuno può solo verificare se stesso.
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Accettazione privacy e dati personali dell'utente.
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read: if isAdmin();
+    }
+
+    // Impostazioni dello studio (istruzioni di pagamento, testi).
+    match /settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /artists/{a} {
+      // Lettura del profilo: admin o membro di un artista attivo.
+      // Usa resource.data così funziona anche nelle query.
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.active == true
+            && request.auth.uid in resource.data.memberUids);
+      allow write: if isAdmin();
+
+      // Note private: solo admin.
+      match /private/{doc} {
+        allow read, write: if isAdmin();
+      }
+
+      // Tutto il resto: lettura per l'artista, scrittura per l'admin.
+      match /{col}/{id} {
+        allow read: if isAdmin() || (isMember(a) && col != 'private');
+        allow write: if isAdmin();
+      }
+
+      // Permessi aggiuntivi dell'artista (Fasi B–E).
+      match /tracks/{id} {
+        allow update: if isMember(a) && onlyChanges(['checklist', 'updatedAt']);
+      }
+      match /comments/{id} {
+        allow create: if isMember(a)
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.resolved == false
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000;
+        allow update: if isMember(a) && (
+          (resource.data.authorUid == request.auth.uid && onlyChanges(['text', 'editedAt']))
+          || onlyChanges(['resolved', 'resolvedBy', 'resolvedAt'])
+        );
+        allow delete: if isMember(a) && resource.data.authorUid == request.auth.uid;
+      }
+      match /demos/{id} {
+        allow create: if isMember(a)
+          && request.resource.data.uploadedBy == request.auth.uid
+          && request.resource.data.seenByAdmin == false;
+      }
+      match /tasks/{id} {
+        allow update: if isMember(a) && resource.data.assignee == 'artist'
+          && onlyChanges(['done', 'doneAt']);
+      }
+    }
+
+    // Vista admin "Da fare oggi" (query su tutti gli artisti).
+    match /{path=**}/comments/{id} { allow read: if isAdmin(); }
+    match /{path=**}/demos/{id}    { allow read: if isAdmin(); }
+    match /{path=**}/tasks/{id}    { allow read: if isAdmin(); }
+    match /{path=**}/payments/{id} { allow read: if isAdmin(); }
+    match /{path=**}/quotes/{id}   { allow read: if isAdmin(); }
+  }
+}
