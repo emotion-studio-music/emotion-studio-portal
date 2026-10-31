@@ -9,6 +9,8 @@ import { Celebration } from '../../components/Celebration';
 import { SocialLinks } from '../../components/SocialLinks';
 import { SharedTracks } from '../../components/SharedTracks';
 import { AddToCalendar } from '../../components/AddToCalendar';
+import { JustReleased, UpcomingRelease } from '../../components/ReleaseCards';
+import { dayKey, releaseInfo, spotlightTrack } from '../../lib/release';
 import { useProjects, useTracks, type Track } from '../../lib/music';
 import { ProjectList } from '../../components/ProjectList';
 import { Cover } from '../../components/Cover';
@@ -70,6 +72,17 @@ export function ArtistHome({ artistId, preview }: Props) {
   const { projects } = useProjects(artistId);
   const { tracks } = useTracks(artistId);
   const toListen = tracks.filter((t) => t.awaitingReview);
+  // Ciclo di vita: in lavorazione → in uscita → appena uscito (30 giorni) → discografia
+  const rel = (t: Track) => releaseInfo(t, projects.find((p) => p.id === t.projectId), settings.stepTemplate);
+  const workingTracks = tracks.filter((t) => !rel(t).released);
+  const workingProjects = projects.filter((p) => {
+    const its = tracks.filter((t) => t.projectId === p.id);
+    return its.length === 0 || its.some((t) => !rel(t).released);
+  });
+  const spot = spotlightTrack(tracks, projects, settings.stepTemplate);
+  const today = dayKey(new Date());
+  const upcomingProjects = projects.filter((p) => p.releaseDate && p.releaseDate > today)
+    .sort((a, b) => a.releaseDate.localeCompare(b.releaseDate));
   const tasks = useTasks(artistId);
   const myTasks = tasks.filter((t) => t.assignee === 'artist' && !t.done)
     .sort((a, b) => (a.dueDate || '9').localeCompare(b.dueDate || '9'));
@@ -110,6 +123,11 @@ export function ArtistHome({ artistId, preview }: Props) {
       <div className="stack">
         <NextSessionCard session={nextSession.session ?? artist.nextSession} />
 
+        {spot && <JustReleased artistId={artistId} t={spot.t} p={spot.p} date={spot.r.date} href={trackHref(spot.t)} />}
+        {upcomingProjects.slice(0, 1).map((p) => (
+          <UpcomingRelease key={p.id} p={p} days={Math.round((new Date(`${p.releaseDate}T12:00`).getTime() - new Date(`${today}T12:00`).getTime()) / 86_400_000)} />
+        ))}
+
         {settings.welcomeText && (
           <p className="small muted" style={{ margin: 0, whiteSpace: 'pre-line' }}>{settings.welcomeText}</p>
         )}
@@ -147,15 +165,15 @@ export function ArtistHome({ artistId, preview }: Props) {
         <section className="section">
           <div className="section-head">
             <h2 className="h2">I miei progetti</h2>
-            {!preview && projects.length > 0 && <Link to="/progetti" className="small" style={{ fontWeight: 600 }}>Vedi tutti</Link>}
+            {!preview && projects.length > 0 && <Link to="/progetti" className="small" style={{ fontWeight: 600 }}>Tutti e discografia</Link>}
           </div>
-          {projects.length === 0 ? (
+          {workingProjects.length === 0 ? (
             <div className="empty">
-              <strong>Ancora nessun progetto</strong>
+              <strong>{projects.length ? 'Nessun lavoro in corso' : 'Ancora nessun progetto'}</strong>
               Singoli ed EP compariranno qui con lo stato di ogni brano, da “Ricevuto” a “Pubblicato”.
             </div>
           ) : (
-            <ProjectList artistId={artistId} projects={projects.slice(0, 2)} tracks={tracks} trackHref={trackHref} />
+            <ProjectList artistId={artistId} projects={workingProjects.slice(0, 2)} tracks={workingTracks} trackHref={trackHref} />
           )}
         </section>
 

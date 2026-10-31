@@ -572,3 +572,13 @@ input[type='range'] { accent-color: var(--accent); width: 100%; }
 .confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .confetti span { position: absolute; top: -20px; border-radius: 2px; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: .9; } }
+
+/* Uscite e discografia */
+.released-card { display: flex; gap: 16px; padding: 16px; align-items: center; flex-wrap: wrap; }
+.released-cover { flex-shrink: 0; }
+.released-img { width: 120px !important; height: 120px !important; border-radius: 14px !important; }
+.released-body { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 200px; }
+.upcoming-card { display: flex; gap: 14px; align-items: center; }
+.disco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.disco-item { overflow: hidden; display: flex; flex-direction: column; }
+.disco-img { width: 100% !important; height: auto !important; aspect-ratio: 1; border-radius: 0 !important; border: none !important; }

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useArtist, useArtists, useSettings } from '../../lib/data';
 import { useComments, type Comment } from '../../lib/comments';
 import { progressColor, progressOf } from '../../lib/steps';
+import { SPOTLIGHT_DAYS, dayKey, releaseInfo } from '../../lib/release';
 import { StepsEditor } from '../../components/StepsEditor';
 import { TrackProgress } from '../../components/TrackProgress';
 import {
@@ -28,6 +29,20 @@ export function Music() {
   const { settings } = useSettings();
   const comments = useComments(id ?? null);
   const [showNew, setShowNew] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  // progetti con tutti i brani usciti da più di 30 giorni: vanno in fondo, chiusi
+  const isArchived = (p: Project) => {
+    const its = tracks.filter((t) => t.projectId === p.id);
+    if (!its.length) return false;
+    return its.every((t) => {
+      const r = releaseInfo(t, p, settings.stepTemplate);
+      if (!r.released) return false;
+      const d = new Date(`${r.date}T12:00`); d.setDate(d.getDate() + SPOTLIGHT_DAYS);
+      return dayKey(d) <= dayKey(new Date());
+    });
+  };
+  const active = projects.filter((p) => !isArchived(p));
+  const archived = projects.filter(isArchived);
   const [drive, setDrive] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,10 +72,22 @@ export function Music() {
         <div className="empty"><strong>Nessun progetto</strong>Crea un singolo o un EP, poi aggiungi i brani e carica le versioni.</div>
       )}
 
-      {projects.map((p) => (
+      {active.map((p) => (
         <ProjectAdmin key={p.id} artist={artist} project={p} tracks={tracks.filter((t) => t.projectId === p.id)}
           template={settings.stepTemplate} comments={comments} />
       ))}
+
+      {archived.length > 0 && (
+        <section className="section">
+          <button type="button" className="btn btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowArchived((v) => !v)} aria-expanded={showArchived}>
+            {showArchived ? 'Nascondi' : 'Mostra'} usciti da più di 30 giorni ({archived.length})
+          </button>
+          {showArchived && archived.map((p) => (
+            <ProjectAdmin key={p.id} artist={artist} project={p} tracks={tracks.filter((t) => t.projectId === p.id)}
+              template={settings.stepTemplate} comments={comments} />
+          ))}
+        </section>
+      )}
     </>
   );
 }
@@ -296,7 +323,12 @@ function TrackAdmin({ artist, project, track, template, openNotes }: { artist: A
       )}
       {stepsOpen && (
         <div className="inset">
-          <StepsEditor steps={steps} onChange={(next) => void run(updateTrack(artist.id, track.id, { steps: next }))} />
+          <StepsEditor steps={steps} onChange={(next) => {
+            const nowComplete = progressOf(next).complete;
+            // il giorno in cui spunti l'ultimo step diventa la data di uscita (se il progetto non ne ha una)
+            const publishedAt = nowComplete ? (track.publishedAt || dayKey(new Date())) : '';
+            void run(updateTrack(artist.id, track.id, { steps: next, publishedAt }));
+          }} />
           <span className="tiny muted">L’artista vede solo la barra e il prossimo step, non questa lista. Quando spunti tutti gli step, per lui scatta la festa “Il tuo brano è sugli store”.</span>
           <StoreLinks links={track.links} onSave={(links) => void run(updateTrack(artist.id, track.id, { links }))} />
         </div>

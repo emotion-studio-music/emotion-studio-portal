@@ -341,6 +341,15 @@ Preventivi e pagamenti restano separati per artista. Per togliere un feat, tocca
 **Aggiungi al calendario** – Nel riquadro "Prossima sessione" l'artista ha due pulsanti: **Google Calendar** e
 **iPhone / altri** (file calendario con promemoria un'ora prima).
 
+**Ciclo di vita del brano (home dell'artista)**
+- *In uscita*: se il progetto ha una data di uscita futura, in home compare il conto alla rovescia.
+- *Appena uscito*: dal giorno di uscita, il brano è in evidenza in cima alla home per **30 giorni**, con Spotify/Apple/YouTube,
+  **Condividi** e copertina. Se nel frattempo esce un altro brano dell'artista, prende il suo posto.
+- *Discografia*: dal giorno dopo l'uscita il brano compare anche in Progetti → Discografia, dove resta per sempre.
+  Dalla home "I miei progetti" spariscono i brani usciti: restano solo i lavori in corso.
+- Il giorno di uscita è la **data di uscita del progetto**; se non c'è, il giorno in cui hai spuntato l'ultimo step.
+- Nel tuo pannello Musica i progetti usciti da più di 30 giorni vanno in fondo, in "Mostra usciti".
+
 > Con questa fase cambiano regole e indici del database: `npm run deploy` li pubblica. Dopo il primo deploy
 > Firebase impiega qualche minuto a preparare i nuovi indici: se "Collaborazioni" non compare subito, riprova poco dopo.
 

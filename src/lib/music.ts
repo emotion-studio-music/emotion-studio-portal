@@ -44,6 +44,7 @@ export interface Track {
   ownerName: string;           // nome dell'artista principale (lo vede chi è in feat)
   ownerArtistId: string;       // id dell'artista principale (dove "vive" il brano)
   collaboratorNames: string[]; // nomi d'arte degli artisti in feat
+  publishedAt: string;         // "AAAA-MM-GG": giorno in cui hai spuntato l'ultimo step ('' se non ancora)
   updatedMs: number;
 }
 
@@ -75,7 +76,7 @@ const toTrack = (id: string, d: DocumentData, owner = ''): Track => ({
   id, projectId: d.projectId, title: d.title ?? '', stage: d.stage ?? 0, steps: Array.isArray(d.steps) ? d.steps : null, order: d.order ?? 0,
   awaitingReview: d.awaitingReview ?? false, currentVersionId: d.currentVersionId ?? null,
   checklist: d.checklist ?? {}, links: d.links ?? {}, collaboratorIds: d.collaboratorIds ?? [], collaboratorUids: d.collaboratorUids ?? [],
-  ownerName: d.ownerName ?? '', ownerArtistId: owner, collaboratorNames: d.collaboratorNames ?? [], updatedMs: ms(d.updatedAt),
+  ownerName: d.ownerName ?? '', ownerArtistId: owner, collaboratorNames: d.collaboratorNames ?? [], publishedAt: d.publishedAt ?? '', updatedMs: ms(d.updatedAt),
 });
 const toVersion = (id: string, d: DocumentData): Version => ({
   id, trackId: d.trackId, projectId: d.projectId, label: d.label ?? '', mp3FileId: d.mp3FileId ?? '',
