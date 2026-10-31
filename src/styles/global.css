@@ -511,3 +511,13 @@ a.card:hover, a.listen-card:hover { transform: translateY(-2px); }
 .quote-lines > span { display: flex; justify-content: space-between; gap: 12px; }
 .tprogress-fill { animation: fill-in .9s var(--ease) both; transform-origin: left; }
 @keyframes fill-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Metodi di pagamento */
+.pay-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.pay-method {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 78px;
+  border-radius: var(--r-md); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text);
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, transform .12s var(--ease);
+}
+.pay-method:active { transform: scale(.97); }
+.pay-method[aria-pressed='true'] { border-color: var(--accent); background: rgba(241,109,47,.12); color: var(--accent-soft); }
