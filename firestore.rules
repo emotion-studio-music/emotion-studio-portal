@@ -30,6 +30,11 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
+    // Dispositivi iscritti alle notifiche: ognuno gestisce solo i propri.
+    match /users/{uid}/push/{id} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
     // Impostazioni dello studio (istruzioni di pagamento, testi).
     match /settings/{doc} {
       allow read: if signedIn();

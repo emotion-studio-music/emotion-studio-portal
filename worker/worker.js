@@ -19,6 +19,9 @@
  *   FIREBASE_SA_JSON      secret  chiave JSON del service account Firebase: serve per creare gli account
  *                                 e per cambiare nome utente / password degli artisti
  *   CALENDAR_ICS_URL      secret  (facoltativo) "indirizzo segreto in formato iCal" del Google Calendar dello studio
+ *   VAPID_PUBLIC_KEY      testo   chiave pubblica per le notifiche push
+ *   VAPID_PRIVATE_KEY     secret  chiave privata per le notifiche push
+ * Cron Trigger: ogni 5 minuti (* /5 * * * * senza spazio) per inviare le notifiche
  */
 
 const DRIVE = 'https://www.googleapis.com/drive/v3';
@@ -308,7 +311,7 @@ async function getServiceToken(env) {
   const head = bytesToB64url(enc.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })));
   const claim = bytesToB64url(enc.encode(JSON.stringify({
     iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/firebase',
+    scope: 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/firebase https://www.googleapis.com/auth/datastore',
     aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600,
   })));
   const pem = String(sa.private_key).replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
@@ -489,6 +492,241 @@ async function calendarUpcoming(req, env) {
   return { configured: true, events: events.slice(0, 50).map((e) => ({ at: e.at, title: e.title, allDay: e.allDay, type: sessionType(e.title) })) };
 }
 
+
+// ───────────── Notifiche push (Web Push standard, senza librerie) ─────────────
+
+function concatBytes(...arrs) {
+  const out = new Uint8Array(arrs.reduce((n, a) => n + a.length, 0));
+  let o = 0;
+  for (const a of arrs) { out.set(a, o); o += a.length; }
+  return out;
+}
+
+async function hkdf(salt, ikm, info, len) {
+  const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, key, len * 8));
+}
+
+const vapidCache = new Map();
+async function vapidHeader(env, endpoint) {
+  const aud = new URL(endpoint).origin;
+  const hit = vapidCache.get(aud);
+  if (hit && hit.exp > Date.now() + 60_000) return hit.value;
+  const pub = b64urlToBytes(env.VAPID_PUBLIC_KEY);
+  const jwk = { kty: 'EC', crv: 'P-256', x: bytesToB64url(pub.slice(1, 33)), y: bytesToB64url(pub.slice(33, 65)), d: env.VAPID_PRIVATE_KEY, ext: true };
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const exp = Math.floor(Date.now() / 1000) + 12 * 3600;
+  const head = bytesToB64url(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const body = bytesToB64url(enc.encode(JSON.stringify({ aud, exp, sub: env.VAPID_SUBJECT || 'mailto:emotion.studiomusic@gmail.com' })));
+  const sig = bytesToB64url(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, enc.encode(`${head}.${body}`)));
+  const value = `vapid t=${head}.${body}.${sig}, k=${env.VAPID_PUBLIC_KEY}`;
+  vapidCache.set(aud, { value, exp: exp * 1000 });
+  return value;
+}
+
+/** Cifratura "aes128gcm" (RFC 8291): solo il telefono dell'utente può leggere il messaggio. */
+async function encryptPush(sub, text) {
+  const uaPublic = b64urlToBytes(sub.p256dh);
+  const authSecret = b64urlToBytes(sub.auth);
+  const local = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const asPublic = new Uint8Array(await crypto.subtle.exportKey('raw', local.publicKey));
+  const uaKey = await crypto.subtle.importKey('raw', uaPublic, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, local.privateKey, 256));
+  const ikm = await hkdf(authSecret, shared, concatBytes(enc.encode('WebPush: info\0'), uaPublic, asPublic), 32);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(salt, ikm, enc.encode('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = await hkdf(salt, ikm, enc.encode('Content-Encoding: nonce\0'), 12);
+  const aes = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, aes, concatBytes(enc.encode(text), new Uint8Array([2]))));
+  return concatBytes(salt, new Uint8Array([0, 0, 16, 0]), new Uint8Array([asPublic.length]), asPublic, ct);
+}
+
+/** Invia una notifica a un dispositivo. Ritorna lo stato HTTP (404/410 = iscrizione scaduta). */
+async function sendPush(env, sub, msg) {
+  const body = await encryptPush(sub, JSON.stringify(msg));
+  const res = await fetch(sub.endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: await vapidHeader(env, sub.endpoint),
+      'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '86400', Urgency: 'normal',
+    },
+    body,
+  });
+  return res.status;
+}
+
+const pushReady = (env) => Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
+
+/** "Invia una notifica di prova" dall'app: il dispositivo manda la sua iscrizione, il Worker la usa subito. */
+async function pushTest(req, env) {
+  await verifyUser(req, env);
+  if (!pushReady(env)) throw new HttpError(501, 'Le notifiche non sono ancora configurate nel Worker (chiavi VAPID).');
+  const { subscription } = await req.json();
+  const sub = { endpoint: subscription?.endpoint, p256dh: subscription?.keys?.p256dh, auth: subscription?.keys?.auth };
+  if (!sub.endpoint || !/^https:\/\//.test(sub.endpoint) || !sub.p256dh || !sub.auth) throw new HttpError(400, 'Iscrizione non valida.');
+  const status = await sendPush(env, sub, { title: 'Emotion Studio', body: 'Le notifiche funzionano 🎧', url: '/' });
+  if (status >= 300) throw new HttpError(502, `Il servizio di notifiche ha risposto ${status}. Riprova ad attivarle.`);
+  return { ok: true };
+}
+
+// ── Firestore con il service account (serve al controllo periodico delle novità) ──
+
+const fsBase = (env) => `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+
+async function fsAdmin(env, url, init) {
+  const token = await getServiceToken(env);
+  return fetch(url, { ...(init || {}), headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+}
+
+function fromValue(v) {
+  if (!v) return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('timestampValue' in v) return Date.parse(v.timestampValue);
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(fromValue);
+  if ('mapValue' in v) return fromFields(v.mapValue.fields);
+  return null;
+}
+function fromFields(f) { const o = {}; for (const [k, v] of Object.entries(f || {})) o[k] = fromValue(v); return o; }
+
+async function fsGet(env, path) {
+  const res = await fsAdmin(env, `${fsBase(env)}/${path}`);
+  if (!res.ok) return null;
+  const d = await res.json();
+  return fromFields(d.fields);
+}
+
+async function fsList(env, path) {
+  const res = await fsAdmin(env, `${fsBase(env)}/${path}?pageSize=50`);
+  if (!res.ok) return [];
+  return ((await res.json()).documents || []).map((d) => ({ id: d.name.split('/').pop(), name: d.name, ...fromFields(d.fields) }));
+}
+
+/** Documenti di una raccolta (in tutti gli artisti) con un campo data successivo a `since`. */
+async function fsSince(env, collectionId, field, since) {
+  const res = await fsAdmin(env, `${fsBase(env)}:runQuery`, {
+    method: 'POST',
+    body: JSON.stringify({ structuredQuery: {
+      from: [{ collectionId, allDescendants: true }],
+      where: { fieldFilter: { field: { fieldPath: field }, op: 'GREATER_THAN', value: { timestampValue: new Date(since).toISOString() } } },
+      limit: 100,
+    } }),
+  });
+  if (!res.ok) return [];
+  return (await res.json()).filter((r) => r.document).map((r) => {
+    const parts = r.document.name.split('/documents/')[1].split('/');
+    return { id: parts[parts.length - 1], artistId: parts[0] === 'artists' ? parts[1] : '', name: r.document.name, ...fromFields(r.document.fields) };
+  });
+}
+
+async function fsPatch(env, path, fields) {
+  const mask = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+  const body = { fields: {} };
+  for (const [k, v] of Object.entries(fields)) {
+    body.fields[k] = typeof v === 'boolean' ? { booleanValue: v } : v instanceof Date ? { timestampValue: v.toISOString() } : { stringValue: String(v) };
+  }
+  await fsAdmin(env, `${fsBase(env)}/${path}?${mask}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+const euro = (cents) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format((cents || 0) / 100);
+
+/**
+ * Controllo periodico (ogni 5 minuti, "Cron Trigger" di Cloudflare): cerca le novità nel database
+ * e manda le notifiche alle persone giuste. Nessuna azione richiesta dall'app.
+ */
+async function notifyRun(env) {
+  if (!pushReady(env) || !env.FIREBASE_SA_JSON) return { skipped: true };
+  const startedAt = Date.now();
+  const state = await fsGet(env, 'system/notify');
+  if (!state || !state.lastRun) { await fsPatch(env, 'system/notify', { lastRun: new Date(startedAt) }); return { first: true }; }
+  const since = state.lastRun;
+
+  const artistCache = new Map();
+  const artist = async (id) => { if (!artistCache.has(id)) artistCache.set(id, await fsGet(env, `artists/${id}`)); return artistCache.get(id) || {}; };
+  const trackCache = new Map();
+  const track = async (a, t) => { const k = `${a}/${t}`; if (!trackCache.has(k)) trackCache.set(k, await fsGet(env, `artists/${a}/tracks/${t}`)); return trackCache.get(k) || {}; };
+  const adminUids = (await fsList(env, 'admins')).map((d) => d.id);
+
+  // eventi: [quando, a chi (uid), messaggio]
+  const events = [];
+  const add = (at, uids, msg) => { for (const uid of new Set(uids)) events.push({ at, uid, msg }); };
+  const artistTargets = async (a, t, path) => {
+    const art = await artist(a);
+    const list = (art.memberUids || []).map((uid) => ({ uid, url: path(false) }));
+    if (t) for (const uid of (await track(a, t)).collaboratorUids || []) list.push({ uid, url: path(true) });
+    return list;
+  };
+
+  for (const c of await fsSince(env, 'comments', 'createdAt', since)) {
+    const isDemo = String(c.trackId || '').startsWith('demo:');
+    if (c.authorRole === 'artist') {
+      const url = isDemo ? `/admin/artisti/${c.artistId}/demo/${c.trackId.slice(5)}` : `/admin/artisti/${c.artistId}/brani/${c.trackId}`;
+      add(c.createdAt, adminUids, { title: `Nuova nota da ${c.authorName || 'un artista'}`, body: String(c.text || '').slice(0, 120), url });
+    } else if (!isDemo) {
+      const tr = await track(c.artistId, c.trackId);
+      for (const x of await artistTargets(c.artistId, c.trackId, (feat) => (feat ? `/feat/${c.artistId}/${c.trackId}` : `/brano/${c.trackId}`))) {
+        add(c.createdAt, [x.uid], { title: `Nota dello studio su “${tr.title || 'un brano'}”`, body: String(c.text || '').slice(0, 120), url: x.url });
+      }
+    } else {
+      const art = await artist(c.artistId);
+      add(c.createdAt, art.memberUids || [], { title: 'Lo studio ha commentato la tua demo', body: String(c.text || '').slice(0, 120), url: `/demo/${c.trackId.slice(5)}` });
+    }
+  }
+  for (const d of await fsSince(env, 'demos', 'createdAt', since)) {
+    const art = await artist(d.artistId);
+    add(d.createdAt, adminUids, { title: `Nuova demo da ${art.stageName || 'un artista'}`, body: d.title || '', url: `/admin/artisti/${d.artistId}/demo/${d.id}` });
+  }
+  for (const v of await fsSince(env, 'versions', 'createdAt', since)) {
+    if (v.label === 'Demo') continue; // creata da "Porta in studio"
+    const tr = await track(v.artistId, v.trackId);
+    for (const x of await artistTargets(v.artistId, v.trackId, (feat) => (feat ? `/feat/${v.artistId}/${v.trackId}` : `/brano/${v.trackId}`))) {
+      add(v.createdAt, [x.uid], { title: `Nuova versione da ascoltare 🎧`, body: `${tr.title || 'Il tuo brano'} · ${v.label || ''}`, url: x.url });
+    }
+  }
+  for (const p of await fsSince(env, 'payments', 'createdAt', since)) {
+    if (p.status !== 'da_pagare') continue;
+    const art = await artist(p.artistId);
+    add(p.createdAt, art.memberUids || [], { title: 'Richiesta di pagamento', body: `${euro(p.amountCents)} · trovi come pagare nell’app`, url: '/pagamenti' });
+  }
+  for (const p of await fsSince(env, 'payments', 'reportedAt', since)) {
+    if (p.status !== 'segnalato') continue;
+    const art = await artist(p.artistId);
+    add(p.reportedAt, adminUids, { title: `${art.stageName || 'Un artista'} dice di aver pagato`, body: `${euro(p.amountCents)} · ${p.reportedMethod || ''} — da confermare`, url: '/admin/oggi' });
+  }
+  for (const t of await fsSince(env, 'tasks', 'createdAt', since)) {
+    if (t.assignee !== 'artist') continue;
+    const art = await artist(t.artistId);
+    add(t.createdAt, art.memberUids || [], { title: 'Nuova cosa da fare', body: t.title || '', url: '/' });
+  }
+  for (const t of await fsSince(env, 'tracks', 'updatedAt', since)) {
+    if (!t.publishedAt || t.pushPublished) continue;
+    for (const x of await artistTargets(t.artistId, t.id, (feat) => (feat ? `/feat/${t.artistId}/${t.id}` : `/brano/${t.id}`))) {
+      add(t.updatedAt, [x.uid], { title: `🚀 “${t.title}” è uscito!`, body: 'Apri l’app: c’è una sorpresa per te.', url: x.url });
+    }
+    await fsPatch(env, `artists/${t.artistId}/tracks/${t.id}`, { pushPublished: true });
+  }
+
+  // invio, in ordine di tempo, con un limite per giro (il resto parte al giro successivo)
+  events.sort((a, b) => a.at - b.at);
+  const subsCache = new Map();
+  let sent = 0;
+  let lastRun = startedAt;
+  for (const ev of events) {
+    if (!subsCache.has(ev.uid)) subsCache.set(ev.uid, await fsList(env, `users/${ev.uid}/push`));
+    const subs = subsCache.get(ev.uid);
+    if (sent + subs.length > 12) { lastRun = ev.at - 1; break; }
+    for (const s of subs) {
+      const status = await sendPush(env, { endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth }, ev.msg).catch(() => 0);
+      sent++;
+      if (status === 404 || status === 410) await fsAdmin(env, `https://firestore.googleapis.com/v1/${s.name}`, { method: 'DELETE' });
+    }
+  }
+  await fsPatch(env, 'system/notify', { lastRun: new Date(lastRun) });
+  return { events: events.length, sent };
+}
+
 // ───────────── cartelle dell'artista (stesse per admin e artista) ─────────────
 
 const FOLDER = 'application/vnd.google-apps.folder';
@@ -604,6 +842,11 @@ async function health(env) {
 // ───────────── router ─────────────
 
 export default {
+  // Cron Trigger (Cloudflare → Impostazioni → Trigger → Cron: */5 * * * *)
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(notifyRun(env).catch(() => undefined));
+  },
+
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(req, env) });
     const { pathname } = new URL(req.url);
@@ -615,6 +858,7 @@ export default {
       if (req.method === 'POST' && pathname === '/admin/upload') return json(await startUpload(req, env), 200, req, env);
       if (req.method === 'PUT' && pathname === '/admin/upload-proxy') return json(await proxyUpload(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/artist-folder') return json(await adminArtistFolder(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/push/test') return json(await pushTest(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/calendar/next') return json(await calendarNext(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/calendar') return json(await calendarUpcoming(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/update-user') return json(await updateUser(req, env), 200, req, env);

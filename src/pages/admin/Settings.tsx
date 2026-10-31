@@ -3,6 +3,7 @@ import { saveSettings, useSettings } from '../../lib/data';
 import { emptySettings, type StudioSettings } from '../../lib/types';
 import { errorMessage } from '../../lib/errors';
 import { Loading } from '../../components/Loading';
+import { NotificationsCard } from '../../components/NotificationsCard';
 
 export function Settings() {
   const { settings, loading } = useSettings();
@@ -25,6 +26,7 @@ export function Settings() {
   return (
     <>
       <div className="page-head"><h1 className="display page-title">Impostazioni studio</h1></div>
+      <div style={{ maxWidth: 720 }}><NotificationsCard who="admin" /></div>
       <form className="form" onSubmit={submit} style={{ gap: 24, maxWidth: 720 }}>
         <section className="card card-pad form">
           <h2 className="h2">Istruzioni di pagamento</h2>

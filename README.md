@@ -353,9 +353,35 @@ Preventivi e pagamenti restano separati per artista. Per togliere un feat, tocca
 > Con questa fase cambiano regole e indici del database: `npm run deploy` li pubblica. Dopo il primo deploy
 > Firebase impiega qualche minuto a preparare i nuovi indici: se "Collaborazioni" non compare subito, riprova poco dopo.
 
+---
+
+## Fase G2b · Notifiche push
+
+**Chi riceve cosa** (entro circa 5 minuti dall'evento)
+- *Tu*: note di revisione scritte dagli artisti, demo nuove, "Ho pagato" da confermare.
+- *Artista*: nuova versione da ascoltare, note dello studio (anche sulle demo), richiesta di pagamento, nuova cosa da fare,
+  brano uscito. Gli artisti in feat ricevono anche quelle del brano condiviso.
+
+**Configurazione (una volta sola)**
+1. Nel Terminale, nella cartella del progetto: `npx web-push generate-vapid-keys` → stampa una *Public Key* e una *Private Key*.
+2. Nel file `.env` aggiungi: `VITE_VAPID_PUBLIC_KEY=` seguito dalla Public Key.
+3. Cloudflare → `emotion-api` → Impostazioni → Variabili e segreti:
+   - *Testo* `VAPID_PUBLIC_KEY` = la Public Key
+   - *Segreto* `VAPID_PRIVATE_KEY` = la Private Key (riservata: non metterla nel `.env`, non mandarla in chat)
+4. Cloudflare → `emotion-api` → **Modifica codice** → incolla il nuovo `worker/worker.js` → Deploy.
+5. Cloudflare → `emotion-api` → Impostazioni → **Trigger** → **Eventi cron** → Aggiungi → `*/5 * * * *` (ogni 5 minuti) → Salva.
+   Serve anche il segreto `FIREBASE_SA_JSON` (già inserito nella Fase F).
+6. `npm run deploy` (pubblica app, regole e nuovi indici).
+
+**Attivarle**
+- Tu (Mac, Chrome/Safari): Impostazioni studio → **Notifiche** → Attiva → **Invia una prova**.
+- Artisti: Profilo → **Notifiche** → Attiva. Su **iPhone** funzionano solo dall'app installata sulla schermata Home
+  (iOS 16.4 o successivo): prima si installa, poi si apre dall'icona e si attivano.
+- Ogni dispositivo si attiva a parte (telefono, computer).
+
 ## Cosa arriva nelle prossime fasi
 
-- **G2b** – notifiche push sul telefono ed email dalla Gmail dello studio
+- Idee future: riepilogo email per lo studio, promemoria sessione il giorno prima
 
 ---
 

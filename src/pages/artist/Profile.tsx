@@ -6,6 +6,7 @@ import { COOKIE_URL, PRIVACY_URL } from '../../lib/legal';
 import { usernameOf } from '../../lib/username';
 import { useBadges } from '../../lib/useBadges';
 import { BadgeGrid } from '../../components/Celebration';
+import { NotificationsCard } from '../../components/NotificationsCard';
 import { Loading } from '../../components/Loading';
 
 type InstallEvt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
@@ -102,6 +103,7 @@ export function Profile() {
           <BadgeGrid badges={badges} />
         </section>
 
+        <NotificationsCard who="artist" />
         <InstallGuide />
         <p className="small muted" style={{ margin: 0 }}>Hai perso la password? Scrivi allo studio: te ne prepara una nuova.</p>
 
