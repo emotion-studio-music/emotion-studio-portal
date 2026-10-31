@@ -1,7 +1,7 @@
 # Emotion Studio · area artisti
 
 Web app privata di Emotion Studio: ogni artista trova brani, progressi, sessioni e pagamenti.
-Fasi completate: **A** (accesso, ruoli, profili artista, impostazioni studio, design "Notturno") **B** (progetti, brani, versioni MP3 su Google Drive, player con forma d'onda) **C** (note sulla forma d'onda, confronto A/B, loop, mini player, percorso del brano) e **D** (demo degli artisti, anche registrate dal telefono).
+Fasi completate: **A** (accesso, ruoli, profili artista, impostazioni studio, design "Notturno") **B** (progetti, brani, versioni MP3 su Google Drive, player con forma d'onda) **C** (note sulla forma d'onda, confronto A/B, loop, mini player, percorso del brano) **D** (demo degli artisti, anche registrate dal telefono) ed **E** (preventivi e pagamenti, sessioni, task, vista "Oggi").
 
 Questa guida è scritta per chi non è sviluppatore. Basta seguire i passaggi in ordine.
 
@@ -237,9 +237,28 @@ con il percorso già pronto e la demo come prima versione. L'artista non vede ma
 
 I file finiscono su Drive in `Emotion Studio – App / Artista / Demo`, sempre di proprietà dello studio.
 
+---
+
+## Fase E · Pagamenti, sessioni, task e vista "Oggi"
+
+**Oggi** (prima voce del menu, con il numero delle cose in sospeso) – pagamenti segnalati dagli artisti da confermare,
+note degli artisti da risolvere, demo nuove, task scaduti o tuoi, pagamenti scaduti, sessioni dei prossimi 7 giorni.
+
+**Lavori e pagamenti** (dal profilo dell'artista → "Pagamenti, sessioni e task"):
+- *Pagamenti*: crei un **preventivo** (per cosa, importo concordato, progetto). Poi **chiedi all'artista** un acconto o il saldo
+  (con scadenza e, se vuoi, un link per pagare con carta generato da Nexi/SumUp/Stripe) oppure **registri un incasso** già ricevuto.
+  Quando l'artista preme "Ho pagato" lo vedi in Oggi: controlli e premi **Conferma incasso**. Puoi annotare il numero di fattura.
+- *Sessioni*: data, ore, tipo, brani lavorati e cosa avete fatto. L'artista vede lo storico e il totale delle ore.
+- *Task*: cose da fare per l'artista (le vede in home e le spunta) o per te (le vedi in Oggi).
+
+**Lato artista** – Pagamenti: totale da saldare, richieste aperte con i pulsanti **Paga con carta** (se hai messo il link),
+**Paga con PayPal** (importo già inserito, se in Impostazioni c'è un link paypal.me), **Copia IBAN**, **Copia causale**
+("Emotion Studio – Artista – Progetto – Acconto") e **Ho pagato**. In home: task da spuntare, "Da saldare" e "Ore in studio".
+
+Le fatture continui a emetterle dal tuo programma: nell'app annoti solo il numero.
+
 ## Cosa arriva nelle prossime fasi
 
-- **E** – task, sessioni, preventivi e pagamenti con pulsanti (PayPal, IBAN con causale, link carta, "Ho pagato"), vista "Da fare oggi"
 - **F** – installazione come app, sottodominio, rifiniture e animazioni
 - **G** – notifiche push ed email, invito sessione nel calendario, feat tra artisti, foto con punto focale, icone social, traguardi e badge
 

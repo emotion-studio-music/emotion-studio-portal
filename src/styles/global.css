@@ -481,3 +481,14 @@ button.time-chip:hover { background: rgba(255,181,71,.26); }
   font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
 }
 @media (max-width: 860px) { .nav-count { margin-left: 0; } }
+
+/* ── Fase E ── */
+.money-hero { display: flex; flex-direction: column; gap: 4px; }
+.money-big { font-family: var(--font-display); font-weight: 850; font-stretch: 112%; font-size: 44px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.money-mid { font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat-card { display: flex; flex-direction: column; gap: 6px; color: var(--text); }
+a.stat-card:hover { color: var(--text); border-color: var(--line-strong); }
+.task-row { padding: 14px 16px; align-items: center; }
+.today-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; color: var(--text); flex-wrap: wrap; }
+.today-row + .today-row { border-top: 1px solid var(--line); }
+.today-row.link:hover { color: var(--accent-soft); }

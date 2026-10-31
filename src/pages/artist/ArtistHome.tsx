@@ -4,6 +4,8 @@ import { Loading } from '../../components/Loading';
 import { useProjects, useTracks, type Track } from '../../lib/music';
 import { ProjectList } from '../../components/ProjectList';
 import { Cover } from '../../components/Cover';
+import { fmtDay, quoteSummary, setTaskDone, todayKey, usePayments, useQuotes, useSessions, useTasks } from '../../lib/business';
+import { eur } from '../../lib/money';
 import { trackSteps } from '../../lib/music';
 import { progressOf, progressColor } from '../../lib/steps';
 import { IconArrowLeft, IconCalendar } from '../../components/Icons';
@@ -55,6 +57,15 @@ export function ArtistHome({ artistId, preview }: Props) {
   const { projects } = useProjects(artistId);
   const { tracks } = useTracks(artistId);
   const toListen = tracks.filter((t) => t.awaitingReview);
+  const tasks = useTasks(artistId);
+  const myTasks = tasks.filter((t) => t.assignee === 'artist' && !t.done)
+    .sort((a, b) => (a.dueDate || '9').localeCompare(b.dueDate || '9'));
+  const quotes = useQuotes(artistId);
+  const payments = usePayments(artistId);
+  const left = quotes.reduce((sum, q) => sum + quoteSummary(q, payments).left, 0);
+  const sessions = useSessions(artistId);
+  const hours = sessions.reduce((sum, x) => sum + x.hours, 0);
+  const lastSession = [...sessions].sort((a, b) => b.date.localeCompare(a.date))[0];
   const trackHref = (t: Track) => (preview ? `/admin/artisti/${artistId}/brani/${t.id}` : `/brano/${t.id}`);
   if (loading) return <Loading />;
   if (!artist) return <div className="stack"><div className="empty">Profilo non trovato.</div></div>;
@@ -135,11 +146,38 @@ export function ArtistHome({ artistId, preview }: Props) {
 
         <section className="section">
           <h2 className="h2">Da fare</h2>
-          <div className="empty">
-            <strong>Tutto in ordine</strong>
-            Qui vedrai le cose da preparare prima della prossima sessione.
-          </div>
+          {myTasks.length === 0 ? (
+            <div className="empty">
+              <strong>Tutto in ordine</strong>
+              Qui vedrai le cose da preparare prima della prossima sessione.
+            </div>
+          ) : (
+            <div className="card list">
+              {myTasks.map((t) => (
+                <label key={t.id} className="check task-row">
+                  <input type="checkbox" checked={t.done} disabled={preview} onChange={(e) => void setTaskDone(artistId, t.id, e.target.checked)} />
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontWeight: 500, textDecoration: t.done ? 'line-through' : 'none', color: t.done ? 'var(--faint)' : 'var(--text)' }}>{t.title}</span>
+                    {t.dueDate && !t.done && <span className="tiny" style={{ fontWeight: 600, color: t.dueDate < todayKey() ? 'var(--danger)' : 'var(--accent-soft)' }}>Entro {fmtDay(t.dueDate)}</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
         </section>
+
+        <div className="grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+          <Link to={preview ? '#' : '/pagamenti'} className="card card-pad stat-card">
+            <span className="tiny muted" style={{ fontWeight: 500 }}>Da saldare</span>
+            <span className="money-mid">{eur(left)}</span>
+            <span className="tiny muted">{left > 0 ? 'Vedi come pagare' : 'Sei in pari ✓'}</span>
+          </Link>
+          <Link to={preview ? '#' : '/sessioni'} className="card card-pad stat-card">
+            <span className="tiny muted" style={{ fontWeight: 500 }}>Ore in studio</span>
+            <span className="money-mid">{hours.toLocaleString('it-IT')} h</span>
+            <span className="tiny muted">{lastSession ? `Ultima: ${fmtDay(lastSession.date)}` : 'Nessuna sessione ancora'}</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

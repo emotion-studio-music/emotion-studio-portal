@@ -32,7 +32,7 @@ export function Settings() {
           <div className="grid-2">
             <label className="field"><span>IBAN</span><input className="input" value={form.iban} onChange={(e) => set('iban', e.target.value)} /></label>
             <label className="field"><span>Intestatario</span><input className="input" value={form.ibanHolder} onChange={(e) => set('ibanHolder', e.target.value)} /></label>
-            <label className="field"><span>PayPal (email o link)</span><input className="input" value={form.paypal} onChange={(e) => set('paypal', e.target.value)} /></label>
+            <label className="field"><span>PayPal</span><input className="input" value={form.paypal} onChange={(e) => set('paypal', e.target.value)} placeholder="paypal.me/emotionstudio" /><small>Con un link paypal.me l’artista ha il pulsante “Paga con PayPal” con l’importo già inserito.</small></label>
             <label className="field"><span>Satispay (nome o numero)</span><input className="input" value={form.satispay} onChange={(e) => set('satispay', e.target.value)} /></label>
           </div>
           <label className="field"><span>Nota sotto i metodi di pagamento</span>

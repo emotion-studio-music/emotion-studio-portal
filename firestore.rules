@@ -85,6 +85,13 @@ service cloud.firestore {
         allow update: if isMember(a) && resource.data.uploadedBy == request.auth.uid && onlyChanges(['title', 'note']);
         allow delete: if isMember(a) && resource.data.uploadedBy == request.auth.uid && resource.data.status == 'nuova';
       }
+      // l'artista segnala "Ho pagato": lo studio poi conferma
+      match /payments/{id} {
+        allow update: if isMember(a) && resource.data.status == 'da_pagare'
+          && request.resource.data.status == 'segnalato'
+          && request.resource.data.reportedMethod is string && request.resource.data.reportedMethod.size() <= 40
+          && onlyChanges(['status', 'reportedMethod', 'reportedAt']);
+      }
       match /tasks/{id} {
         allow update: if isMember(a) && resource.data.assignee == 'artist'
           && onlyChanges(['done', 'doneAt']);

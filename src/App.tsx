@@ -21,6 +21,9 @@ import { TrackPage } from './pages/TrackPage';
 import { DemoPage } from './pages/DemoPage';
 import { Demos } from './pages/admin/Demos';
 import { Upload } from './pages/artist/Upload';
+import { Sessions } from './pages/artist/Sessions';
+import { Manage } from './pages/admin/Manage';
+import { Today } from './pages/admin/Today';
 
 function ArtistPreview() {
   const { id } = useParams();
@@ -73,10 +76,12 @@ function Gate() {
           <Route path="artisti/:id/brani/:trackId" element={<AdminTrackRoute />} />
           <Route path="impostazioni" element={<Settings />} />
           <Route path="demo" element={<Demos />} />
+          <Route path="oggi" element={<Today />} />
+          <Route path="artisti/:id/gestione" element={<Manage />} />
           <Route path="artisti/:id/demo" element={<Demos />} />
           <Route path="artisti/:id/demo/:demoId" element={<AdminDemoRoute />} />
         </Route>
-        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="*" element={<Navigate to="/admin/oggi" replace />} />
       </Routes>
       </PlayerProvider>
     );
@@ -92,6 +97,7 @@ function Gate() {
         <Route path="brano/:trackId" element={<ArtistTrackRoute />} />
         <Route path="carica" element={<Upload />} />
         <Route path="demo/:demoId" element={<ArtistDemoRoute />} />
+        <Route path="sessioni" element={<Sessions />} />
         <Route path="pagamenti" element={<Payments />} />
         <Route path="profilo" element={<Profile />} />
       </Route>
