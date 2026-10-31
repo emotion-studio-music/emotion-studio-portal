@@ -5,7 +5,7 @@ import { QuoteBuilder } from '../../components/QuoteBuilder';
 import { useTracks } from '../../lib/music';
 import {
   PAYMENT_KIND, SESSION_TYPES, createPayment, createSession, createTask, deletePayment, deleteQuote,
-  deleteSession, deleteTask, fmtDay, quoteSummary, setTaskDone, todayKey, updatePayment, usePayments, useQuotes,
+  deleteSession, deleteTask, fmtDay, setTaskAssignee, quoteSummary, setTaskDone, todayKey, updatePayment, usePayments, useQuotes,
   useSessions, useTasks, type Payment, type PaymentKind, type Quote,
 } from '../../lib/business';
 import { eur, parseEuro } from '../../lib/money';
@@ -241,7 +241,7 @@ function TasksTab({ artistId }: { artistId: string }) {
   const tasks = useTasks(artistId).sort((a, b) => Number(a.done) - Number(b.done) || (a.dueDate || '9').localeCompare(b.dueDate || '9'));
   const { tracks } = useTracks(artistId);
   const [title, setTitle] = useState('');
-  const [assignee, setAssignee] = useState<'artist' | 'admin'>('artist');
+  const [assignee, setAssignee] = useState<'artist' | 'admin'>('admin');
   const [due, setDue] = useState('');
   const [trackId, setTrackId] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -261,8 +261,8 @@ function TasksTab({ artistId }: { artistId: string }) {
         <div className="grid-2">
           <div className="field"><span>Chi</span>
             <div className="seg" style={{ alignSelf: 'flex-start' }}>
-              <button type="button" aria-pressed={assignee === 'artist'} onClick={() => setAssignee('artist')}>Artista</button>
               <button type="button" aria-pressed={assignee === 'admin'} onClick={() => setAssignee('admin')}>Studio (io)</button>
+              <button type="button" aria-pressed={assignee === 'artist'} onClick={() => setAssignee('artist')}>Artista</button>
             </div>
           </div>
           <label className="field"><span>Entro il (facoltativo)</span><input className="input" type="date" value={due} onChange={(e) => setDue(e.target.value)} /></label>
@@ -286,10 +286,15 @@ function TasksTab({ artistId }: { artistId: string }) {
                 <input type="checkbox" checked={t.done} onChange={(e) => void setTaskDone(artistId, t.id, e.target.checked)} />
                 <span style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ textDecoration: t.done ? 'line-through' : 'none', color: t.done ? 'var(--faint)' : 'var(--text)' }}>{t.title}</span>
-                  <span className="tiny muted">{t.assignee === 'artist' ? 'Artista' : 'Studio'}{t.dueDate ? ` · entro ${fmtDay(t.dueDate)}` : ''}{t.trackId ? ` · ${tracks.find((x) => x.id === t.trackId)?.title ?? ''}` : ''}</span>
+                  <span className="tiny" style={{ color: t.assignee === 'admin' ? 'var(--amber)' : 'var(--muted)' }}>{t.assignee === 'artist' ? 'Lo fa l’artista (lo vede nella sua home)' : 'Lo fai tu (compare in Oggi)'}{t.dueDate ? ` · entro ${fmtDay(t.dueDate)}` : ''}{t.trackId ? ` · ${tracks.find((x) => x.id === t.trackId)?.title ?? ''}` : ''}</span>
                 </span>
               </label>
-              <button className="btn btn-ghost btn-sm" aria-label="Elimina task" onClick={() => void deleteTask(artistId, t.id)}>✕</button>
+              <div className="row-actions">
+                <button className="btn btn-ghost btn-sm" onClick={() => void setTaskAssignee(artistId, t.id, t.assignee === 'artist' ? 'admin' : 'artist')}>
+                  {t.assignee === 'artist' ? 'Passa a me' : 'Passa all’artista'}
+                </button>
+                <button className="btn btn-ghost btn-sm" aria-label="Elimina task" onClick={() => void deleteTask(artistId, t.id)}>✕</button>
+              </div>
             </div>
           ))}
         </div>

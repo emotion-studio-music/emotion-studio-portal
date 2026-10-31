@@ -100,6 +100,7 @@ export const createTask = (a: string, t: Pick<Task, 'title' | 'assignee' | 'dueD
   addDoc(col(a, 'tasks'), { ...t, done: false, createdAt: serverTimestamp() });
 export const setTaskDone = (a: string, id: string, done: boolean) => updateDoc(ref(a, 'tasks', id), { done, doneAt: done ? serverTimestamp() : null });
 export const deleteTask = (a: string, id: string) => deleteDoc(ref(a, 'tasks', id));
+export const setTaskAssignee = (a: string, id: string, assignee: 'artist' | 'admin') => updateDoc(ref(a, 'tasks', id), { assignee });
 
 export const createSession = (a: string, s: Pick<Session, 'date' | 'hours' | 'type' | 'description' | 'trackIds'>) =>
   addDoc(col(a, 'sessions'), { ...s, createdAt: serverTimestamp() });
