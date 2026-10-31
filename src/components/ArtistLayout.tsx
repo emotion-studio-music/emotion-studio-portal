@@ -1,4 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { MiniPlayer } from './MiniPlayer';
+import { usePlayer } from '../lib/player';
 import { IconCard, IconDisc, IconHome, IconUpload, IconUser } from './Icons';
 
 const tabs = [
@@ -10,9 +12,11 @@ const tabs = [
 ];
 
 export function ArtistLayout() {
+  const pl = usePlayer();
   return (
-    <div className="artist-app">
+    <div className={`artist-app${pl.track ? ' with-mini' : ''}`}>
       <Outlet />
+      <MiniPlayer bottom="calc(66px + env(safe-area-inset-bottom, 0px))" />
       <nav className="tabbar" aria-label="Navigazione principale">
         <div className="tabbar-inner">
           {tabs.map(({ to, label, Icon, end }) => (

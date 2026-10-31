@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
+import { PlayerProvider } from './lib/player';
 import { isConfigured } from './lib/firebase';
 import { Loading } from './components/Loading';
 import { ArtistLayout } from './components/ArtistLayout';
@@ -15,10 +16,24 @@ import { ComingSoon } from './pages/artist/ComingSoon';
 import { Artists } from './pages/admin/Artists';
 import { ArtistForm } from './pages/admin/ArtistForm';
 import { Settings } from './pages/admin/Settings';
+import { Music } from './pages/admin/Music';
+import { Projects } from './pages/artist/Projects';
+import { TrackPage } from './pages/TrackPage';
 
 function ArtistPreview() {
   const { id } = useParams();
   return <div className="artist-app" style={{ paddingBottom: 0 }}><ArtistHome artistId={id!} preview /></div>;
+}
+
+function AdminTrackRoute() {
+  const { id, trackId } = useParams();
+  return <TrackPage artistId={id!} trackId={trackId!} backTo={`/admin/artisti/${id}/musica`} backLabel="Musica" href={`/admin/artisti/${id}/brani/${trackId}`} />;
+}
+
+function ArtistTrackRoute() {
+  const { artistId } = useAuth();
+  const { trackId } = useParams();
+  return <TrackPage artistId={artistId!} trackId={trackId!} backTo="/progetti" backLabel="Progetti" href={`/brano/${trackId}`} />;
 }
 
 function ArtistHomeRoute() {
@@ -34,31 +49,38 @@ function Gate() {
 
   if (role === 'admin') {
     return (
+      <PlayerProvider>
       <Routes>
         <Route path="/admin/artisti/:id/anteprima" element={<ArtistPreview />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Artists />} />
           <Route path="artisti/nuovo" element={<ArtistForm key="nuovo" />} />
           <Route path="artisti/:id" element={<ArtistForm />} />
+          <Route path="artisti/:id/musica" element={<Music />} />
+          <Route path="artisti/:id/brani/:trackId" element={<AdminTrackRoute />} />
           <Route path="impostazioni" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
+      </PlayerProvider>
     );
   }
 
   if (!privacyAccepted) return <Consent />;
   return (
+    <PlayerProvider>
     <Routes>
       <Route element={<ArtistLayout />}>
         <Route index element={<ArtistHomeRoute />} />
-        <Route path="progetti" element={<ComingSoon title="Progetti" text="Qui troverai singoli ed EP, con tutti i brani e le versioni da ascoltare." />} />
+        <Route path="progetti" element={<Projects />} />
+        <Route path="brano/:trackId" element={<ArtistTrackRoute />} />
         <Route path="carica" element={<ComingSoon title="Carica" text="Presto potrai caricare provini e reference direttamente da qui." />} />
         <Route path="pagamenti" element={<Payments />} />
         <Route path="profilo" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </PlayerProvider>
   );
 }
 

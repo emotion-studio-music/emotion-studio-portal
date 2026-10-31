@@ -100,7 +100,10 @@ export function ArtistForm() {
           <h1 className="display page-title">{isNew ? 'Nuovo artista' : form.stageName || 'Artista'}</h1>
         </div>
         {!isNew && id && (
-          <Link to={`/admin/artisti/${id}/anteprima`} className="btn"><IconEye width={18} height={18} /> Vedi come lo vede l’artista</Link>
+          <div className="row-actions">
+            <Link to={`/admin/artisti/${id}/musica`} className="btn btn-primary">Musica: progetti e brani</Link>
+            <Link to={`/admin/artisti/${id}/anteprima`} className="btn"><IconEye width={18} height={18} /> Vedi come lo vede l’artista</Link>
+          </div>
         )}
       </div>
 

@@ -55,13 +55,13 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
 
-      // Permessi aggiuntivi dell'artista (Fasi B–E).
-      match /tracks/{id} {
-        allow update: if isMember(a) && onlyChanges(['checklist', 'updatedAt']);
-      }
+      // Permessi aggiuntivi dell'artista.
+      // I brani (e il loro percorso) li modifica solo lo studio.
       match /comments/{id} {
         allow create: if isMember(a)
           && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.authorRole == 'artist'
+          && (request.resource.data.atSeconds == null || request.resource.data.atSeconds is number)
           && request.resource.data.resolved == false
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0

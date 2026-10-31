@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useArtist, useSettings } from '../../lib/data';
 import { Loading } from '../../components/Loading';
+import { useProjects, useTracks, type Track } from '../../lib/music';
+import { ProjectList } from '../../components/ProjectList';
+import { Cover } from '../../components/Cover';
+import { trackSteps } from '../../lib/music';
+import { progressOf, progressColor } from '../../lib/steps';
 import { IconArrowLeft, IconCalendar } from '../../components/Icons';
 import type { NextSession } from '../../lib/types';
 import { isUpcoming, longDate, monthShort, parseAt, relativeDay, timeOf } from '../../lib/dates';
@@ -47,6 +52,10 @@ interface Props {
 export function ArtistHome({ artistId, preview }: Props) {
   const { artist, loading } = useArtist(artistId);
   const { settings } = useSettings();
+  const { projects } = useProjects(artistId);
+  const { tracks } = useTracks(artistId);
+  const toListen = tracks.filter((t) => t.awaitingReview);
+  const trackHref = (t: Track) => (preview ? `/admin/artisti/${artistId}/brani/${t.id}` : `/brano/${t.id}`);
   if (loading) return <Loading />;
   if (!artist) return <div className="stack"><div className="empty">Profilo non trovato.</div></div>;
 
@@ -80,22 +89,48 @@ export function ArtistHome({ artistId, preview }: Props) {
         )}
 
         <section className="section">
-          <div className="section-head"><h2 className="h2">Da ascoltare</h2></div>
-          <div className="empty">
-            <strong>Nessuna versione nuova</strong>
-            Quando lo studio carica un mix o un master lo trovi qui, pronto da ascoltare e commentare.
+          <div className="section-head">
+            <h2 className="h2">Da ascoltare</h2>
+            {toListen.length > 0 && <span className="small muted">{toListen.length === 1 ? '1 brano ti aspetta' : `${toListen.length} brani ti aspettano`}</span>}
           </div>
+          {toListen.length === 0 ? (
+            <div className="empty">
+              <strong>Nessuna versione nuova</strong>
+              Quando lo studio carica un mix o un master lo trovi qui, pronto da ascoltare.
+            </div>
+          ) : toListen.map((t) => {
+            const p = projects.find((x) => x.id === t.projectId);
+            return (
+              <Link key={t.id} to={trackHref(t)} className="card card-glow listen-card">
+                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                  <Cover src={p?.cover ?? null} title={p?.title ?? t.title} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                    <span style={{ fontSize: 17, fontWeight: 600 }}>{t.title}</span>
+                    <span className="small muted">{p?.title} · nuova versione</span>
+                    {(() => { const pr = progressOf(trackSteps(t, settings.stepTemplate)); return (
+                      <span className="tiny" style={{ fontWeight: 600, color: progressColor(pr.pct) }}>{pr.pct}% · {pr.complete ? pr.label : `Siamo a: ${pr.label}`}</span>
+                    ); })()}
+                  </div>
+                </div>
+                <span className="btn btn-primary btn-block">Ascolta</span>
+              </Link>
+            );
+          })}
         </section>
 
         <section className="section">
           <div className="section-head">
             <h2 className="h2">I miei progetti</h2>
-            {!preview && <Link to="/progetti" className="small" style={{ fontWeight: 600 }}>Vedi tutti</Link>}
+            {!preview && projects.length > 0 && <Link to="/progetti" className="small" style={{ fontWeight: 600 }}>Vedi tutti</Link>}
           </div>
-          <div className="empty">
-            <strong>Ancora nessun progetto</strong>
-            Singoli ed EP compariranno qui con lo stato di ogni brano, da “Ricevuto” a “Pubblicato”.
-          </div>
+          {projects.length === 0 ? (
+            <div className="empty">
+              <strong>Ancora nessun progetto</strong>
+              Singoli ed EP compariranno qui con lo stato di ogni brano, da “Ricevuto” a “Pubblicato”.
+            </div>
+          ) : (
+            <ProjectList projects={projects.slice(0, 2)} tracks={tracks} trackHref={trackHref} />
+          )}
         </section>
 
         <section className="section">

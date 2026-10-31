@@ -1,3 +1,5 @@
+import { DEFAULT_STEPS } from './steps';
+
 export interface ArtistLinks {
   instagram?: string;
   spotify?: string;
@@ -36,6 +38,7 @@ export interface StudioSettings {
   satispay: string;
   paymentNote: string;
   welcomeText: string;
+  stepTemplate: string[]; // percorso predefinito dei nuovi brani
 }
 
 export const emptySettings: StudioSettings = {
@@ -45,4 +48,5 @@ export const emptySettings: StudioSettings = {
   satispay: '',
   paymentNote: '',
   welcomeText: '',
+  stepTemplate: DEFAULT_STEPS,
 };

@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { MiniPlayer } from './MiniPlayer';
 import { IconLogout, IconSettings, IconUsers } from './Icons';
 
 export function AdminLayout() {
@@ -28,6 +29,7 @@ export function AdminLayout() {
           <Outlet />
         </div>
       </main>
+      <MiniPlayer bottom="calc(16px + env(safe-area-inset-bottom, 0px))" />
     </div>
   );
 }

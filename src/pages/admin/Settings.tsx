@@ -17,7 +17,7 @@ export function Settings() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true); setMsg(null);
-    try { await saveSettings(form); setMsg({ ok: true, text: 'Impostazioni salvate.' }); }
+    try { await saveSettings({ ...form, stepTemplate: form.stepTemplate.map((x) => x.trim()).filter(Boolean) }); setMsg({ ok: true, text: 'Impostazioni salvate.' }); }
     catch (err) { setMsg({ ok: false, text: errorMessage(err) }); }
     finally { setBusy(false); }
   };
@@ -43,6 +43,17 @@ export function Settings() {
           <h2 className="h2">Messaggio nella home degli artisti</h2>
           <label className="field"><span>Testo breve (facoltativo)</span>
             <textarea className="textarea" value={form.welcomeText} onChange={(e) => set('welcomeText', e.target.value)} placeholder="Studio chiuso dal 24 al 27 dicembre." />
+          </label>
+        </section>
+        <section className="card card-pad form">
+          <h2 className="h2">Percorso dei brani</h2>
+          <p className="small muted" style={{ margin: 0 }}>
+            Gli step di produzione che ogni nuovo brano riceve in automatico. Uno per riga, nell’ordine giusto.
+            Su ogni brano puoi poi togliere o aggiungere step. L’artista vede solo la barra di avanzamento.
+          </p>
+          <label className="field"><span>Step predefiniti</span>
+            <textarea className="textarea" style={{ minHeight: 230 }} value={form.stepTemplate.join('\n')}
+              onChange={(e) => setForm((f) => ({ ...f, stepTemplate: e.target.value.split('\n') }))} />
           </label>
         </section>
         {msg && <div className={`alert ${msg.ok ? 'alert-ok' : 'alert-error'}`} role="status">{msg.text}</div>}
