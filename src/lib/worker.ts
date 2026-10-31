@@ -23,9 +23,15 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 }
 
 /** URL temporaneo (3 ore) per ascoltare o scaricare una versione. */
-export async function mediaUrl(artistId: string, versionId: string, download = false): Promise<string> {
-  const { url } = await call<{ url: string }>('/media/token', { artistId, versionId, download });
+export async function mediaUrl(artistId: string, id: string, download = false, kind: 'version' | 'demo' = 'version'): Promise<string> {
+  const body = kind === 'demo' ? { artistId, demoId: id, download } : { artistId, versionId: id, download };
+  const { url } = await call<{ url: string }>('/media/token', body);
   return url;
+}
+
+/** Cartella Drive dell'artista (la trova o la crea il Worker, così admin e artista usano la stessa). */
+export function resolveArtistFolder(artistId: string) {
+  return call<{ artistFolderId: string; rootId: string | null }>('/admin/artist-folder', { artistId });
 }
 
 export async function createDriveFolder(name: string, parentId: string | null): Promise<string> {
@@ -35,7 +41,7 @@ export async function createDriveFolder(name: string, parentId: string | null): 
 
 export interface DriveFile { id: string; name: string; size?: string; mimeType?: string }
 
-function xhrPut(url: string, file: File, onProgress: (p: number) => void, headers: Record<string, string> = {}): Promise<DriveFile> {
+function xhrPut(url: string, file: Blob, onProgress: (p: number) => void, headers: Record<string, string> = {}): Promise<DriveFile> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);
@@ -65,6 +71,28 @@ export async function uploadToDrive(file: File, parentId: string, onProgress: (p
     onProgress(0);
     const token = await auth.currentUser?.getIdToken();
     return await xhrPut(`${BASE}/admin/upload-proxy?u=${encodeURIComponent(uploadUrl)}`, file, onProgress, {
+      Authorization: `Bearer ${token}`,
+    });
+  }
+}
+
+/** Sposta il file della demo nel Cestino di Drive (solo admin). */
+export function trashDemoFile(artistId: string, demoId: string) {
+  return call<{ ok: boolean; trashed: boolean }>('/admin/demo-trash', { artistId, demoId });
+}
+
+/** L'artista carica una demo nella sua cartella "Demo" su Drive. */
+export async function uploadDemo(file: Blob, name: string, artistId: string, onProgress: (p: number) => void): Promise<DriveFile> {
+  const { uploadUrl } = await call<{ uploadUrl: string }>('/artist/upload', {
+    artistId, name, mimeType: file.type || 'audio/mp4', size: file.size,
+  });
+  try {
+    return await xhrPut(uploadUrl, file, onProgress);
+  } catch (e) {
+    if (!(e as { network?: boolean }).network) throw e;
+    onProgress(0);
+    const token = await auth.currentUser?.getIdToken();
+    return await xhrPut(`${BASE}/artist/upload-proxy?a=${encodeURIComponent(artistId)}&u=${encodeURIComponent(uploadUrl)}`, file, onProgress, {
       Authorization: `Bearer ${token}`,
     });
   }

@@ -1,7 +1,7 @@
 # Emotion Studio · area artisti
 
 Web app privata di Emotion Studio: ogni artista trova brani, progressi, sessioni e pagamenti.
-Fasi completate: **A** (accesso, ruoli, profili artista, impostazioni studio, design "Notturno") **B** (progetti, brani, versioni MP3 su Google Drive, player con forma d'onda) e **C** (note sulla forma d'onda, confronto A/B, loop, mini player, percorso del brano).
+Fasi completate: **A** (accesso, ruoli, profili artista, impostazioni studio, design "Notturno") **B** (progetti, brani, versioni MP3 su Google Drive, player con forma d'onda) **C** (note sulla forma d'onda, confronto A/B, loop, mini player, percorso del brano) e **D** (demo degli artisti, anche registrate dal telefono).
 
 Questa guida è scritta per chi non è sviluppatore. Basta seguire i passaggi in ordine.
 
@@ -219,9 +219,26 @@ trascinandone i bordi; toccando il pulsante con i tempi lo accendi e spegni.
 
 > Dopo aver installato la Fase C pubblica anche le nuove regole di sicurezza: `npm run deploy` lo fa in automatico.
 
+---
+
+## Fase D · Demo degli artisti
+
+**Aggiornare il Worker (obbligatorio con la Fase D)** – Cloudflare → Workers e Pages → `emotion-api` → **Modifica codice** →
+cancella tutto → incolla il nuovo `worker/worker.js` → **Deploy**. Le variabili restano quelle di prima.
+
+**Lato artista** – Tab **Demo** in basso: "Carica un file" (memo vocale, M4A, MP3, WAV, fino a 100 MB) oppure
+"Registra adesso" (pulsante rosso, massimo 10 minuti), titolo e nota → **Invia allo studio**. In "Le mie demo" vede lo stato:
+*Inviata allo studio*, *Ascoltata*, *⭐ Selezionata per lo studio*. Finché non l'hai aperta può ritirarla.
+
+**Lato studio** – Voce **Demo** nel menu (con il numero delle nuove) e badge "N demo nuove" sui riquadri degli artisti.
+Aprendo una demo diventa "Ascoltata". Puoi darle da 1 a 5 stelle, cambiare stato (Da ascoltare, Ascoltata, Selezionata, Scartata),
+lasciare note sulla forma d'onda, scaricarla, eliminarla (il file va nel Cestino di Drive per 30 giorni) e premere **Porta in studio**: crea il brano (in un nuovo singolo o in un progetto esistente)
+con il percorso già pronto e la demo come prima versione. L'artista non vede mai "Scartata": per lui resta "Ascoltata".
+
+I file finiscono su Drive in `Emotion Studio – App / Artista / Demo`, sempre di proprietà dello studio.
+
 ## Cosa arriva nelle prossime fasi
 
-- **D** – caricamento provini dagli artisti
 - **E** – task, sessioni, preventivi e pagamenti con pulsanti (PayPal, IBAN con causale, link carta, "Ho pagato"), vista "Da fare oggi"
 - **F** – installazione come app, sottodominio, rifiniture e animazioni
 - **G** – notifiche push ed email, invito sessione nel calendario, feat tra artisti, foto con punto focale, icone social, traguardi e badge

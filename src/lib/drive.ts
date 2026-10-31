@@ -1,26 +1,19 @@
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { createDriveFolder } from './worker';
+import { createDriveFolder, resolveArtistFolder } from './worker';
 import type { Artist } from './types';
 import type { Project } from './music';
-
-const ROOT_NAME = 'Emotion Studio – App';
 
 /** Crea (se mancano) le cartelle Drive: Emotion Studio – App / Artista / Progetto / Versioni. */
 export async function ensureVersionsFolder(artist: Artist, project: Project): Promise<string> {
   if (project.versionsFolderId) return project.versionsFolderId;
 
-  const settingsRef = doc(db, 'settings', 'drive');
-  let rootId = (await getDoc(settingsRef)).data()?.rootFolderId as string | undefined;
-  if (!rootId) {
-    rootId = await createDriveFolder(ROOT_NAME, null);
-    await setDoc(settingsRef, { rootFolderId: rootId }, { merge: true });
-  }
-
   let artistFolder = artist.driveFolderId;
   if (!artistFolder) {
-    artistFolder = await createDriveFolder(artist.stageName, rootId);
+    const r = await resolveArtistFolder(artist.id);
+    artistFolder = r.artistFolderId;
     await updateDoc(doc(db, 'artists', artist.id), { driveFolderId: artistFolder });
+    if (r.rootId) await setDoc(doc(db, 'settings', 'drive'), { rootFolderId: r.rootId }, { merge: true });
   }
 
   let projectFolder = project.driveFolderId;

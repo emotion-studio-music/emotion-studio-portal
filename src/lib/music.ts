@@ -51,6 +51,7 @@ export interface Version {
   downloadEnabled: boolean;
   notes: string;
   createdMs: number;
+  kind?: 'demo'; // le demo usano lo stesso lettore
 }
 
 const ms = (t: unknown) => (t as Timestamp | undefined)?.toMillis?.() ?? Date.now();

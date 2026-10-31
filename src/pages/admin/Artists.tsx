@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useArtists } from '../../lib/data';
+import { useAllDemos } from '../../lib/demos';
 import { Loading } from '../../components/Loading';
 import { IconPlus } from '../../components/Icons';
 
 export function Artists() {
   const { artists, loading } = useArtists();
+  const demos = useAllDemos(true);
   if (loading) return <Loading />;
   const active = artists.filter((a) => a.active);
   const inactive = artists.filter((a) => !a.active);
@@ -35,6 +37,7 @@ export function Artists() {
                 <span className="name">{a.stageName}</span>
                 <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {!a.active && <span className="badge badge-off">Disattivato</span>}
+                  {(() => { const n = demos.filter((d) => d.artistId === a.id && d.status === 'nuova').length; return n > 0 ? <span className="badge badge-new">{n === 1 ? '1 demo nuova' : `${n} demo nuove`}</span> : null; })()}
                   {a.genres.slice(0, 2).map((g) => <span key={g} className="badge">{g}</span>)}
                 </span>
               </div>

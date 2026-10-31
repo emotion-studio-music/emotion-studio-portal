@@ -4,7 +4,7 @@
  * Fa da ponte tra l'app e il Google Drive dello studio:
  *  - streaming degli MP3 tramite URL firmati a scadenza (con supporto Range per iPhone)
  *  - download delle versioni, solo se abilitato dall'admin
- *  - creazione cartelle e caricamento file su Drive (solo admin)
+ *  - creazione cartelle e caricamento file su Drive (versioni: admin · demo: artista)
  *
  * Chi può fare cosa lo decidono le regole di Firestore: il Worker legge i documenti
  * usando il token dell'utente, quindi se le regole dicono "no", il Worker si ferma.
@@ -174,18 +174,30 @@ async function sign(env, msg) {
 async function mediaToken(req, env) {
   const user = await verifyUser(req, env);
   const body = await req.json();
-  const { artistId, versionId, download } = body || {};
-  if (!safeId(artistId) || !safeId(versionId)) throw new HttpError(400, 'Richiesta non valida.');
-  const v = await readDocAsUser(env, user, `artists/${artistId}/versions/${versionId}`);
-  if (!v || !v.mp3FileId) throw new HttpError(404, 'Versione non trovata.');
-  if (download && v.downloadEnabled !== true) throw new HttpError(403, 'Il download di questa versione non è abilitato.');
+  const { artistId, versionId, demoId, download } = body || {};
+  if (!safeId(artistId) || !(safeId(versionId) || safeId(demoId))) throw new HttpError(400, 'Richiesta non valida.');
+  let fileId, fileName;
+  if (demoId) {
+    // Demo caricata dall'artista: il file deve essere davvero una demo di QUESTO artista.
+    const d = await readDocAsUser(env, user, `artists/${artistId}/demos/${demoId}`);
+    if (!d || !d.fileId || !safeId(d.fileId)) throw new HttpError(404, 'Demo non trovata.');
+    const meta = await driveFetch(env, `${DRIVE}/files/${d.fileId}?fields=appProperties`);
+    const props = meta.ok ? (await meta.json()).appProperties || {} : {};
+    if (props.emotionDemoOf !== artistId) throw new HttpError(403, 'File non valido.');
+    fileId = d.fileId; fileName = d.fileName || 'demo.m4a';
+  } else {
+    const v = await readDocAsUser(env, user, `artists/${artistId}/versions/${versionId}`);
+    if (!v || !v.mp3FileId) throw new HttpError(404, 'Versione non trovata.');
+    if (download && v.downloadEnabled !== true) throw new HttpError(403, 'Il download di questa versione non è abilitato.');
+    fileId = v.mp3FileId; fileName = v.fileName || 'brano.mp3';
+  }
   const e = Math.floor(Date.now() / 1000) + MEDIA_TTL_SECONDS;
   const d = download ? '1' : '0';
-  const n = (v.fileName || 'brano.mp3').replace(/[^\w.\- ()àèéìòù]/gi, '_').slice(0, 120);
-  const s = await sign(env, `${v.mp3FileId}|${e}|${d}|${n}`);
+  const n = String(fileName).replace(/[^\w.\- ()àèéìòù]/gi, '_').slice(0, 120);
+  const s = await sign(env, `${fileId}|${e}|${d}|${n}`);
   const base = new URL(req.url).origin;
   const q = new URLSearchParams({ e: String(e), d, n, s });
-  return { url: `${base}/media/${v.mp3FileId}?${q}` };
+  return { url: `${base}/media/${fileId}?${q}` };
 }
 
 async function serveMedia(req, env, fileId) {
@@ -265,6 +277,110 @@ async function proxyUpload(req, env) {
   return await res.json();
 }
 
+// ───────────── cartelle dell'artista (stesse per admin e artista) ─────────────
+
+const FOLDER = 'application/vnd.google-apps.folder';
+
+async function findByProp(env, key, value) {
+  const q = `appProperties has { key='${key}' and value='${value}' } and mimeType='${FOLDER}' and trashed=false`;
+  const res = await driveFetch(env, `${DRIVE}/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1`);
+  if (!res.ok) return null;
+  const files = (await res.json()).files || [];
+  return files[0]?.id || null;
+}
+
+async function makeFolder(env, name, parentId, props) {
+  const res = await driveFetch(env, `${DRIVE}/files?fields=id`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: String(name).slice(0, 200), mimeType: FOLDER, parents: parentId ? [parentId] : undefined, appProperties: props }),
+  });
+  if (!res.ok) throw new HttpError(502, 'Non riesco a creare la cartella su Drive.');
+  return (await res.json()).id;
+}
+
+/** Trova o crea: Emotion Studio – App / Artista. Usa prima gli ID già salvati nell'app. */
+async function resolveArtistFolder(env, user, artistId) {
+  const artist = await readDocAsUser(env, user, `artists/${artistId}`);
+  if (!artist) throw new HttpError(403, 'Non hai accesso a questo artista.');
+  if (artist.driveFolderId) return { artist, artistFolderId: artist.driveFolderId, rootId: null };
+  const found = await findByProp(env, 'emotionArtist', artistId);
+  if (found) return { artist, artistFolderId: found, rootId: null };
+  const settings = await readDocAsUser(env, user, 'settings/drive');
+  let rootId = settings?.rootFolderId || await findByProp(env, 'emotionRoot', '1');
+  if (!rootId) rootId = await makeFolder(env, 'Emotion Studio – App', null, { emotionRoot: '1' });
+  const artistFolderId = await makeFolder(env, artist.stageName || 'Artista', rootId, { emotionArtist: artistId });
+  return { artist, artistFolderId, rootId };
+}
+
+async function adminArtistFolder(req, env) {
+  const user = await requireAdmin(req, env);
+  const { artistId } = await req.json();
+  if (!safeId(artistId)) throw new HttpError(400, 'Artista non valido.');
+  const { artistFolderId, rootId } = await resolveArtistFolder(env, user, artistId);
+  return { artistFolderId, rootId };
+}
+
+const MAX_DEMO = 100 * 1024 * 1024;
+
+/** L'artista carica una demo: va nella sua cartella "Demo", di proprietà dello studio. */
+async function artistUpload(req, env) {
+  const user = await verifyUser(req, env);
+  const { artistId, name, mimeType, size } = await req.json();
+  if (!safeId(artistId) || !name || !(size > 0)) throw new HttpError(400, 'Dati del file mancanti.');
+  if (size > MAX_DEMO) throw new HttpError(413, 'Il file supera i 100 MB.');
+  if (mimeType && !/^(audio|video)\//.test(mimeType)) throw new HttpError(415, 'Carica un file audio.');
+  const { artistFolderId } = await resolveArtistFolder(env, user, artistId);
+  let demos = await findByProp(env, 'emotionDemos', artistId);
+  if (!demos) demos = await makeFolder(env, 'Demo', artistFolderId, { emotionDemos: artistId });
+  const res = await driveFetch(env, `${DRIVE_UPLOAD}?uploadType=resumable&fields=id,name,size,mimeType`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-Upload-Content-Type': mimeType || 'audio/mp4',
+      'X-Upload-Content-Length': String(size),
+      Origin: req.headers.get('Origin') || '',
+    },
+    body: JSON.stringify({ name: String(name).slice(0, 200), parents: [demos], appProperties: { emotionDemoOf: artistId } }),
+  });
+  const uploadUrl = res.headers.get('Location');
+  if (!res.ok || !uploadUrl) throw new HttpError(502, 'Drive non accetta il caricamento. Riprova più tardi.');
+  return { uploadUrl };
+}
+
+async function artistUploadProxy(req, env) {
+  const user = await verifyUser(req, env);
+  const url = new URL(req.url);
+  const target = url.searchParams.get('u') || '';
+  const artistId = url.searchParams.get('a') || '';
+  if (!safeId(artistId) || !target.startsWith(`${DRIVE_UPLOAD}?`)) throw new HttpError(400, 'Destinazione non valida.');
+  if (!(await readDocAsUser(env, user, `artists/${artistId}`))) throw new HttpError(403, 'Non hai accesso a questo artista.');
+  const len = Number(req.headers.get('Content-Length') || 0);
+  if (len > MAX_PROXY_UPLOAD) throw new HttpError(413, 'File troppo grande per questo metodo di caricamento.');
+  const res = await fetch(target, { method: 'PUT', body: await req.arrayBuffer() });
+  if (!res.ok) throw new HttpError(502, 'Caricamento su Drive non riuscito.');
+  return await res.json();
+}
+
+/** Lo studio elimina una demo: il file va nel Cestino di Drive (recuperabile per 30 giorni). */
+async function trashDemo(req, env) {
+  const user = await requireAdmin(req, env);
+  const { artistId, demoId } = await req.json();
+  if (!safeId(artistId) || !safeId(demoId)) throw new HttpError(400, 'Richiesta non valida.');
+  const d = await readDocAsUser(env, user, `artists/${artistId}/demos/${demoId}`);
+  if (!d || !d.fileId || !safeId(d.fileId)) return { ok: true, trashed: false };
+  const meta = await driveFetch(env, `${DRIVE}/files/${d.fileId}?fields=appProperties`);
+  const props = meta.ok ? (await meta.json()).appProperties || {} : {};
+  if (props.emotionDemoOf !== artistId) throw new HttpError(403, 'File non valido.');
+  const res = await driveFetch(env, `${DRIVE}/files/${d.fileId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true }),
+  });
+  if (!res.ok && res.status !== 404) throw new HttpError(502, 'Non riesco a spostare il file nel Cestino di Drive.');
+  return { ok: true, trashed: true };
+}
+
 async function health(env) {
   const res = await driveFetch(env, `${DRIVE}/about?fields=storageQuota`);
   if (!res.ok) throw new HttpError(502, 'Drive non raggiungibile.');
@@ -286,6 +402,10 @@ export default {
       if (req.method === 'POST' && pathname === '/admin/folder') return json(await createFolder(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/upload') return json(await startUpload(req, env), 200, req, env);
       if (req.method === 'PUT' && pathname === '/admin/upload-proxy') return json(await proxyUpload(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/admin/artist-folder') return json(await adminArtistFolder(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/admin/demo-trash') return json(await trashDemo(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/artist/upload') return json(await artistUpload(req, env), 200, req, env);
+      if (req.method === 'PUT' && pathname === '/artist/upload-proxy') return json(await artistUploadProxy(req, env), 200, req, env);
       return json({ error: 'Indirizzo non trovato.' }, 404, req, env);
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 500;

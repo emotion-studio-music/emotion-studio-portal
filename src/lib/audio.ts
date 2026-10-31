@@ -2,7 +2,7 @@
  * Calcola la forma d'onda di un file audio nel browser, una volta sola al caricamento.
  * Così gli artisti la vedono subito e l'audio parte in streaming senza scaricare tutto.
  */
-export async function analyzeAudio(file: File, buckets = 1000): Promise<{ peaks: number[]; duration: number }> {
+export async function analyzeAudio(file: Blob, buckets = 1000): Promise<{ peaks: number[]; duration: number }> {
   const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const ctx = new Ctx();
   try {
@@ -37,4 +37,18 @@ export function formatTime(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/** Durata letta dal browser, quando la forma d'onda non si può calcolare (file molto grandi). */
+export function readDuration(file: Blob): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const a = new Audio();
+    a.preload = 'metadata';
+    const done = (d: number) => { URL.revokeObjectURL(url); resolve(isFinite(d) ? Math.round(d * 100) / 100 : 0); };
+    a.onloadedmetadata = () => done(a.duration);
+    a.onerror = () => done(0);
+    a.src = url;
+    setTimeout(() => done(a.duration || 0), 8000);
+  });
 }

@@ -6,7 +6,7 @@ import { IconCard, IconDisc, IconHome, IconUpload, IconUser } from './Icons';
 const tabs = [
   { to: '/', label: 'Home', Icon: IconHome, end: true },
   { to: '/progetti', label: 'Progetti', Icon: IconDisc },
-  { to: '/carica', label: 'Carica', Icon: IconUpload },
+  { to: '/carica', label: 'Demo', Icon: IconUpload },
   { to: '/pagamenti', label: 'Pagamenti', Icon: IconCard },
   { to: '/profilo', label: 'Profilo', Icon: IconUser },
 ];

@@ -12,13 +12,15 @@ import { Setup } from './pages/Setup';
 import { ArtistHome } from './pages/artist/ArtistHome';
 import { Profile } from './pages/artist/Profile';
 import { Payments } from './pages/artist/Payments';
-import { ComingSoon } from './pages/artist/ComingSoon';
 import { Artists } from './pages/admin/Artists';
 import { ArtistForm } from './pages/admin/ArtistForm';
 import { Settings } from './pages/admin/Settings';
 import { Music } from './pages/admin/Music';
 import { Projects } from './pages/artist/Projects';
 import { TrackPage } from './pages/TrackPage';
+import { DemoPage } from './pages/DemoPage';
+import { Demos } from './pages/admin/Demos';
+import { Upload } from './pages/artist/Upload';
 
 function ArtistPreview() {
   const { id } = useParams();
@@ -34,6 +36,17 @@ function ArtistTrackRoute() {
   const { artistId } = useAuth();
   const { trackId } = useParams();
   return <TrackPage artistId={artistId!} trackId={trackId!} backTo="/progetti" backLabel="Progetti" href={`/brano/${trackId}`} />;
+}
+
+function AdminDemoRoute() {
+  const { id, demoId } = useParams();
+  return <DemoPage artistId={id!} demoId={demoId!} backTo="/admin/demo" backLabel="Demo" href={`/admin/artisti/${id}/demo/${demoId}`} />;
+}
+
+function ArtistDemoRoute() {
+  const { artistId } = useAuth();
+  const { demoId } = useParams();
+  return <DemoPage artistId={artistId!} demoId={demoId!} backTo="/carica" backLabel="Le mie demo" href={`/demo/${demoId}`} />;
 }
 
 function ArtistHomeRoute() {
@@ -59,6 +72,9 @@ function Gate() {
           <Route path="artisti/:id/musica" element={<Music />} />
           <Route path="artisti/:id/brani/:trackId" element={<AdminTrackRoute />} />
           <Route path="impostazioni" element={<Settings />} />
+          <Route path="demo" element={<Demos />} />
+          <Route path="artisti/:id/demo" element={<Demos />} />
+          <Route path="artisti/:id/demo/:demoId" element={<AdminDemoRoute />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
@@ -74,7 +90,8 @@ function Gate() {
         <Route index element={<ArtistHomeRoute />} />
         <Route path="progetti" element={<Projects />} />
         <Route path="brano/:trackId" element={<ArtistTrackRoute />} />
-        <Route path="carica" element={<ComingSoon title="Carica" text="Presto potrai caricare provini e reference direttamente da qui." />} />
+        <Route path="carica" element={<Upload />} />
+        <Route path="demo/:demoId" element={<ArtistDemoRoute />} />
         <Route path="pagamenti" element={<Payments />} />
         <Route path="profilo" element={<Profile />} />
       </Route>

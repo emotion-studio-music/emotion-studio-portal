@@ -1,10 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { MiniPlayer } from './MiniPlayer';
-import { IconLogout, IconSettings, IconUsers } from './Icons';
+import { IconDisc, IconLogout, IconSettings, IconUsers } from './Icons';
+import { useAllDemos } from '../lib/demos';
 
 export function AdminLayout() {
   const { user, logout } = useAuth();
+  const newDemos = useAllDemos(true).filter((d) => d.status === 'nuova').length;
   return (
     <div className="admin-app">
       <aside className="sidebar">
@@ -12,6 +14,9 @@ export function AdminLayout() {
         <nav className="side-nav" aria-label="Menu admin">
           <NavLink to="/admin" end className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
             <IconUsers /> <span>Artisti</span>
+          </NavLink>
+ <NavLink to="/admin/demo" className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
+            <IconDisc /> <span>Demo</span>{newDemos > 0 && <b className="nav-count" aria-label={`${newDemos} nuove`}>{newDemos}</b>}
           </NavLink>
           <NavLink to="/admin/impostazioni" className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
             <IconSettings /> <span>Impostazioni studio</span>

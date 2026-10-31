@@ -94,7 +94,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         retried.current[side] = true;
         const t = a.currentTime;
         const wasActivePlaying = isActive() && st.playing;
-        mediaUrl(st.track.artistId, v.id).then((url) => {
+        mediaUrl(st.track.artistId, v.id, false, v.kind ?? 'version').then((url) => {
           a.src = url;
           a.currentTime = t;
           if (wasActivePlaying) void a.play();
@@ -149,7 +149,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setS({ ...initial, track, versions: { A: version, B: null }, duration: version.duration });
     ref.current = { ...initial, track, versions: { A: version, B: null }, duration: version.duration };
     try {
-      const url = await mediaUrl(track.artistId, version.id);
+      const url = await mediaUrl(track.artistId, version.id, false, version.kind ?? 'version');
       if (ref.current.versions.A?.id !== version.id) return; // nel frattempo è cambiato brano
       const a = el('A');
       a.src = url;
@@ -190,7 +190,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     setS((p) => ({ ...p, versions: { ...p.versions, B: version }, loadingB: true }));
     try {
-      const url = await mediaUrl(st.track.artistId, version.id);
+      const url = await mediaUrl(st.track.artistId, version.id, false, version.kind ?? 'version');
       const b = el('B');
       b.preload = 'auto';
       b.src = url;

@@ -75,7 +75,15 @@ service cloud.firestore {
       match /demos/{id} {
         allow create: if isMember(a)
           && request.resource.data.uploadedBy == request.auth.uid
-          && request.resource.data.seenByAdmin == false;
+          && request.resource.data.seenByAdmin == false
+          && request.resource.data.status == 'nuova'
+          && request.resource.data.rating == 0
+          && request.resource.data.title is string && request.resource.data.title.size() <= 120
+          && request.resource.data.keys().hasOnly(['title', 'note', 'fileId', 'fileName', 'mimeType', 'size', 'peaks',
+               'duration', 'source', 'uploadedBy', 'status', 'rating', 'seenByAdmin', 'createdAt']);
+        // l'artista può correggere titolo e nota, o ritirare la demo finché lo studio non l'ha ascoltata
+        allow update: if isMember(a) && resource.data.uploadedBy == request.auth.uid && onlyChanges(['title', 'note']);
+        allow delete: if isMember(a) && resource.data.uploadedBy == request.auth.uid && resource.data.status == 'nuova';
       }
       match /tasks/{id} {
         allow update: if isMember(a) && resource.data.assignee == 'artist'
