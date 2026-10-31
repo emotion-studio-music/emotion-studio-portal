@@ -14,7 +14,7 @@ export function Today() {
   const cal = useCalendarUpcoming(true);
   const calSessions = cal.events
     .map((e) => ({ e, a: artistInTitle(e.title, artists.filter((x) => x.active)), d: parseAt(e.at) }))
-    .filter((x) => x.a && x.d && x.d.getTime() - Date.now() < 7 * 86_400_000);
+    .filter((x) => x.d && x.d.getTime() - Date.now() < 7 * 86_400_000);
   const upcoming = artists
     .map((a) => ({ a, d: parseAt(a.nextSession.at) }))
     .filter((x) => x.a.active && x.d && isUpcoming(x.d) && x.d.getTime() - Date.now() < 7 * 86_400_000)
@@ -94,11 +94,18 @@ export function Today() {
       )}
 
       <Block title="Sessioni nei prossimi 7 giorni" hint={cal.status}>
-        {cal.configured ? (calSessions.length === 0 ? <span className="small muted">Nessuna sessione in calendario.</span> : calSessions.map(({ e, a, d }) => (
-          <Link key={`${e.at}-${e.title}`} to={`/admin/artisti/${a!.id}`} className="today-row link">
-            <span><strong>{a!.stageName}</strong> · {e.title}</span>
-            <span className="small muted">{longDate(d!)}{e.allDay ? '' : ` · ${timeOf(d!)}`}</span>
-          </Link>
+ {cal.configured ? (calSessions.length === 0 ? <span className="small muted">Nessun impegno in calendario.</span> : calSessions.map(({ e, a, d }) => (
+          a ? (
+            <Link key={`${e.at}-${e.title}`} to={`/admin/artisti/${a.id}`} className="today-row link">
+              <span><strong>{a.stageName}</strong> · {e.title}</span>
+              <span className="small muted">{longDate(d!)}{e.allDay ? '' : ` · ${timeOf(d!)}`}</span>
+            </Link>
+          ) : (
+            <div key={`${e.at}-${e.title}`} className="today-row">
+              <span className="muted">{e.title} <span className="tiny">· non è un artista dell’app</span></span>
+              <span className="small muted">{longDate(d!)}{e.allDay ? '' : ` · ${timeOf(d!)}`}</span>
+            </div>
+          )
         ))) : upcoming.length === 0 ? <span className="small muted">Nessuna sessione in programma.</span> : upcoming.map(({ a, d }) => (
           <Link key={a.id} to={`/admin/artisti/${a.id}`} className="today-row link">
             <span><strong>{a.stageName}</strong>{a.nextSession.type ? ` · ${a.nextSession.type}` : ''}</span>
