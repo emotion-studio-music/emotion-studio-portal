@@ -39,12 +39,16 @@ export function useOpenArtistNotes(enabled: boolean) {
 }
 
 /** Commenti di un artista (tutti) o di un solo brano. */
-export function useComments(artistId: string | null, trackId?: string) {
+export function useComments(artistId: string | null, trackId?: string, asCollaborator?: string) {
   const [comments, setComments] = useState<Comment[]>([]);
   useEffect(() => {
     if (!artistId) return;
     const ref = collection(db, 'artists', artistId, 'comments');
-    const q = trackId ? query(ref, where('trackId', '==', trackId)) : ref;
+    const q = trackId
+      ? (asCollaborator
+        ? query(ref, where('trackId', '==', trackId), where('collaboratorUids', 'array-contains', asCollaborator))
+        : query(ref, where('trackId', '==', trackId)))
+      : ref;
     return onSnapshot(q, (s) => setComments(s.docs.map((d) => {
       const x = d.data();
       return {
@@ -53,13 +57,13 @@ export function useComments(artistId: string | null, trackId?: string) {
         resolved: x.resolved ?? false, createdMs: (x.createdAt as Timestamp | undefined)?.toMillis?.() ?? Date.now(),
       };
     })), () => setComments([]));
-  }, [artistId, trackId]);
+  }, [artistId, trackId, asCollaborator]);
   return comments;
 }
 
-export function addComment(artistId: string, c: Omit<Comment, 'id' | 'createdMs' | 'resolved'>) {
+export function addComment(artistId: string, c: Omit<Comment, 'id' | 'createdMs' | 'resolved'>, collaboratorUids: string[] = []) {
   return addDoc(collection(db, 'artists', artistId, 'comments'), {
-    ...c, text: c.text.trim().slice(0, 2000), resolved: false, createdAt: serverTimestamp(),
+    ...c, text: c.text.trim().slice(0, 2000), resolved: false, collaboratorUids, createdAt: serverTimestamp(),
   });
 }
 

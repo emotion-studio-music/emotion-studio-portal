@@ -4,10 +4,67 @@
       "collectionGroup": "artists",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "memberUids", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "active", "order": "ASCENDING" }
+        {
+          "fieldPath": "memberUids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "versions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "trackId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "collaboratorUids",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "comments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "trackId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "collaboratorUids",
+          "arrayConfig": "CONTAINS"
+        }
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "tracks",
+      "fieldPath": "collaboratorUids",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    }
+  ]
 }

@@ -52,6 +52,11 @@ function ArtistDemoRoute() {
   return <DemoPage artistId={artistId!} demoId={demoId!} backTo="/carica" backLabel="Le mie demo" href={`/demo/${demoId}`} />;
 }
 
+function FeatTrackRoute() {
+  const { ownerId, trackId } = useParams();
+  return <TrackPage artistId={ownerId!} trackId={trackId!} backTo="/progetti" backLabel="Progetti" href={`/feat/${ownerId}/${trackId}`} shared />;
+}
+
 function ArtistHomeRoute() {
   const { artistId } = useAuth();
   return <ArtistHome artistId={artistId!} />;
@@ -98,6 +103,7 @@ function Gate() {
         <Route path="carica" element={<Upload />} />
         <Route path="demo/:demoId" element={<ArtistDemoRoute />} />
         <Route path="sessioni" element={<Sessions />} />
+        <Route path="feat/:ownerId/:trackId" element={<FeatTrackRoute />} />
         <Route path="pagamenti" element={<Payments />} />
         <Route path="profilo" element={<Profile />} />
       </Route>

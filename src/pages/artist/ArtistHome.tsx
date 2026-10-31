@@ -7,6 +7,8 @@ import { useAuth } from '../../lib/auth';
 import { useBadges } from '../../lib/useBadges';
 import { Celebration } from '../../components/Celebration';
 import { SocialLinks } from '../../components/SocialLinks';
+import { SharedTracks } from '../../components/SharedTracks';
+import { AddToCalendar } from '../../components/AddToCalendar';
 import { useProjects, useTracks, type Track } from '../../lib/music';
 import { ProjectList } from '../../components/ProjectList';
 import { Cover } from '../../components/Cover';
@@ -46,6 +48,7 @@ function NextSessionCard({ session }: { session: NextSession }) {
           {relativeDay(d)} ore {timeOf(d)}{session.type ? ` · ${session.type}` : ''}
         </span>
         <span className="small muted">{dayMonth(d)}{session.note ? ` — ${session.note}` : ''}</span>
+        <AddToCalendar start={d} title={`Emotion Studio – ${session.type || 'Sessione'}`} />
       </div>
     </div>
   );
@@ -155,6 +158,8 @@ export function ArtistHome({ artistId, preview }: Props) {
             <ProjectList artistId={artistId} projects={projects.slice(0, 2)} tracks={tracks} trackHref={trackHref} />
           )}
         </section>
+
+        {!preview && <SharedTracks />}
 
         <section className="section">
           <h2 className="h2">Da fare</h2>

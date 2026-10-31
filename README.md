@@ -329,9 +329,24 @@ festa a schermo intero con coriandoli; nel Profilo c'è la bacheca "I miei tragu
 Nel pannello Musica, sotto il percorso del brano, puoi incollare i **link a Spotify / Apple Music / YouTube**:
 compaiono nella festa e nella pagina del brano.
 
+---
+
+## Fase G2a · Feat tra artisti e "Aggiungi al calendario"
+
+**Feat** – Pannello Musica dell'artista principale → sul brano **+ Feat con un altro artista** → tocca gli artisti in collaborazione.
+Il brano resta in un solo posto (carichi le versioni una volta): gli artisti in feat lo trovano in **Collaborazioni**
+(home e Progetti) con player, versioni, note di revisione e avanzamento. Le note scritte da loro le vedi in "Oggi" come le altre.
+Preventivi e pagamenti restano separati per artista. Per togliere un feat, tocca di nuovo il nome.
+
+**Aggiungi al calendario** – Nel riquadro "Prossima sessione" l'artista ha due pulsanti: **Google Calendar** e
+**iPhone / altri** (file calendario con promemoria un'ora prima).
+
+> Con questa fase cambiano regole e indici del database: `npm run deploy` li pubblica. Dopo il primo deploy
+> Firebase impiega qualche minuto a preparare i nuovi indici: se "Collaborazioni" non compare subito, riprova poco dopo.
+
 ## Cosa arriva nelle prossime fasi
 
-- **G2** – notifiche push ed email, invito della sessione nel calendario dell'artista, feat tra artisti
+- **G2b** – notifiche push sul telefono ed email dalla Gmail dello studio
 
 ---
 

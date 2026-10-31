@@ -15,6 +15,7 @@ interface Props {
   authorName: string;
   onSeek: (t: number) => void;
   highlight: string | null;
+  collaboratorUids?: string[]; // feat: le note le vedono anche gli artisti in collaborazione
 }
 
 export function Comments(p: Props) {
@@ -37,7 +38,7 @@ export function Comments(p: Props) {
       await addComment(p.artistId, {
         trackId: p.trackId, versionId: p.versionId, authorUid: p.uid, authorRole: p.role, authorName: p.authorName,
         text, atSeconds: general ? null : Math.round(p.time * 10) / 10,
-      });
+      }, p.collaboratorUids ?? []);
       setText('');
     } catch (err) {
       setError(errorMessage(err));

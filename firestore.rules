@@ -55,9 +55,33 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
 
+      // Feat: chi è in collaborazione su un brano legge il brano, le sue versioni, le note e il progetto.
+      function isCollab() {
+        return signedIn() && request.auth.uid in resource.data.get('collaboratorUids', []);
+      }
+      match /tracks/{id}   { allow read: if isCollab(); }
+      match /versions/{id} { allow read: if isCollab(); }
+      match /projects/{id} { allow read: if isCollab(); }
+
       // Permessi aggiuntivi dell'artista.
       // I brani (e il loro percorso) li modifica solo lo studio.
       match /comments/{id} {
+        allow read: if isCollab();
+        // chi è in feat può scrivere note sul brano condiviso (copiando l'elenco dei collaboratori del brano)
+        allow create: if signedIn()
+          && request.auth.uid in get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.get('collaboratorUids', [])
+          && request.resource.data.collaboratorUids == get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.collaboratorUids
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.authorRole == 'artist'
+          && request.resource.data.resolved == false
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000;
+        allow update: if isCollab() && (
+          (resource.data.authorUid == request.auth.uid && onlyChanges(['text', 'editedAt']))
+          || onlyChanges(['resolved', 'resolvedBy', 'resolvedAt'])
+        );
+        allow delete: if isCollab() && resource.data.authorUid == request.auth.uid;
         allow create: if isMember(a)
           && request.resource.data.authorUid == request.auth.uid
           && request.resource.data.authorRole == 'artist'
@@ -96,6 +120,11 @@ service cloud.firestore {
         allow update: if isMember(a) && resource.data.assignee == 'artist'
           && onlyChanges(['done', 'doneAt']);
       }
+    }
+
+    // Brani in feat: l'artista cerca tra tutti i brani quelli che lo includono.
+    match /{path=**}/tracks/{id} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid in resource.data.get('collaboratorUids', []));
     }
 
     // Vista admin "Da fare oggi" (query su tutti gli artisti).

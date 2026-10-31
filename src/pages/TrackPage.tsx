@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { useArtist, useSettings } from '../lib/data';
-import { trackSteps, useProjects, useTracks, useVersions, type Version } from '../lib/music';
+import { trackSteps, useProjectDoc, useProjects, useTrackDoc, useTracks, useVersions, type Version } from '../lib/music';
 import { useComments } from '../lib/comments';
 import { usePlayer, type PlayerTrack } from '../lib/player';
 import { progressColor, progressOf } from '../lib/steps';
@@ -18,18 +18,23 @@ import { eur } from '../lib/money';
 import { Loading } from '../components/Loading';
 import { IconArrowLeft } from '../components/Icons';
 
-interface Props { artistId: string; trackId: string; backTo: string; backLabel: string; href: string }
+/** shared = l'artista collegato è in feat su un brano di un altro artista (artistId = artista principale). */
+interface Props { artistId: string; trackId: string; backTo: string; backLabel: string; href: string; shared?: boolean }
 
-export function TrackPage({ artistId, trackId, backTo, backLabel, href }: Props) {
-  const { user, role } = useAuth();
-  const { artist } = useArtist(artistId);
+export function TrackPage({ artistId, trackId, backTo, backLabel, href, shared }: Props) {
+  const { user, role, artistId: myArtistId } = useAuth();
+  const uid = user?.uid ?? '';
+  const { artist: me } = useArtist(role === 'artist' ? myArtistId : null);
+  const { artist } = useArtist(shared ? null : artistId);
   const { settings } = useSettings();
-  const { tracks, loading } = useTracks(artistId);
-  const { projects } = useProjects(artistId);
-  const { versions, loading: vLoading } = useVersions(artistId, trackId);
-  const comments = useComments(artistId, trackId);
-  const quotes = useQuotes(artistId);
-  const payments = usePayments(artistId);
+  const { tracks, loading: tLoading } = useTracks(shared ? null : artistId);
+  const single = useTrackDoc(shared ? artistId : null, trackId);
+  const loading = shared ? single.loading : tLoading;
+  const { projects } = useProjects(shared ? null : artistId);
+  const { versions, loading: vLoading } = useVersions(artistId, trackId, shared ? uid : undefined);
+  const comments = useComments(artistId, trackId, shared ? uid : undefined);
+  const quotes = useQuotes(shared ? null : artistId);
+  const payments = usePayments(shared ? null : artistId);
   const quote = quotes.find((q) => q.trackIds.includes(trackId));
   const quoteLeft = quote ? quoteSummary(quote, payments).left : 0;
   const pl = usePlayer();
@@ -41,8 +46,9 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href }: Props)
   const [dlBusy, setDlBusy] = useState(false);
   const [dlError, setDlError] = useState<string | null>(null);
 
-  const track = tracks.find((t) => t.id === trackId);
-  const project = projects.find((p) => p.id === track?.projectId);
+  const track = shared ? single.track : tracks.find((t) => t.id === trackId);
+  const sharedProject = useProjectDoc(shared ? artistId : null, track?.projectId);
+  const project = shared ? sharedProject : projects.find((p) => p.id === track?.projectId);
   const progress = progressOf(track ? trackSteps(track, settings.stepTemplate) : []);
   const color = progressColor(progress.pct);
   const loadedHere = pl.track?.trackId === trackId;
@@ -56,7 +62,7 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href }: Props)
 
   const selectedVersion = versions.find((v) => v.id === selected) ?? null;
   const info: PlayerTrack | null = track ? {
-    artistId, trackId, title: track.title, artistName: artist?.stageName ?? '', cover: project?.cover ?? null, color, href,
+    artistId, trackId, title: track.title, artistName: artist?.stageName ?? track.ownerName, cover: project?.cover ?? null, color, href,
   } : null;
 
   // carica la versione nel lettore, senza interrompere un altro brano che sta suonando
@@ -119,7 +125,11 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href }: Props)
         <Link to={backTo} className="back-link"><IconArrowLeft width={18} height={18} /> {backLabel}</Link>
         <Cover src={project?.cover ?? null} title={project?.title ?? track.title} className="track-cover cover" />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="small muted">{project?.title}</span>
+          <span className="small muted">
+            {project?.title}
+            {shared && track.ownerName ? ` · brano di ${track.ownerName}` : ''}
+            {!shared && track.collaboratorNames.length ? ` · feat. ${track.collaboratorNames.join(', ')}` : ''}
+          </span>
           <h1 className="display" style={{ fontSize: 'clamp(36px, 11vw, 52px)', overflowWrap: 'anywhere' }}>{track.title}</h1>
         </div>
         <TrackProgress progress={progress} />
@@ -262,9 +272,10 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href }: Props)
                 time={time}
                 uid={user.uid}
                 role={role === 'admin' ? 'admin' : 'artist'}
-                authorName={role === 'admin' ? 'Emotion Studio' : (artist?.stageName ?? 'Artista')}
+                authorName={role === 'admin' ? 'Emotion Studio' : (me?.stageName ?? 'Artista')}
                 onSeek={(t) => playHere(t)}
                 highlight={highlight}
+                collaboratorUids={track.collaboratorUids}
               />
             )}
           </>

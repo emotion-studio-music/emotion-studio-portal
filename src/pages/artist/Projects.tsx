@@ -2,6 +2,7 @@ import { useAuth } from '../../lib/auth';
 import { useProjects, useTracks } from '../../lib/music';
 import { ProjectList } from '../../components/ProjectList';
 import { Loading } from '../../components/Loading';
+import { SharedTracks } from '../../components/SharedTracks';
 
 export function Projects() {
   const { artistId } = useAuth();
@@ -15,6 +16,7 @@ export function Projects() {
         {projects.length === 0
           ? <div className="empty"><strong>Ancora nessun progetto</strong>Singoli ed EP compariranno qui con lo stato di ogni brano.</div>
           : <ProjectList artistId={artistId!} projects={projects} tracks={tracks} trackHref={(t) => `/brano/${t.id}`} />}
+        <SharedTracks />
       </div>
     </div>
   );

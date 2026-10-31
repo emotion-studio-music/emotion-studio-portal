@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where, writeBatch,
+  addDoc, collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where, writeBatch,
   type DocumentData, type Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -39,6 +39,11 @@ export interface Track {
   currentVersionId: string | null;
   checklist: Record<string, boolean>;
   links: { spotify?: string; apple?: string; youtube?: string }; // link agli store quando è pubblicato
+  collaboratorIds: string[];   // feat: altri artisti dello studio che vedono il brano
+  collaboratorUids: string[];  // i loro account (servono alle regole di sicurezza)
+  ownerName: string;           // nome dell'artista principale (lo vede chi è in feat)
+  ownerArtistId: string;       // id dell'artista principale (dove "vive" il brano)
+  collaboratorNames: string[]; // nomi d'arte degli artisti in feat
   updatedMs: number;
 }
 
@@ -56,6 +61,7 @@ export interface Version {
   notes: string;
   createdMs: number;
   kind?: 'demo'; // le demo usano lo stesso lettore
+  collaboratorUids?: string[];
 }
 
 const ms = (t: unknown) => (t as Timestamp | undefined)?.toMillis?.() ?? Date.now();
@@ -65,10 +71,11 @@ const toProject = (id: string, d: DocumentData): Project => ({
   driveFolderId: d.driveFolderId ?? null, versionsFolderId: d.versionsFolderId ?? null,
   coverFileId: d.coverFileId ?? null, coverFileName: d.coverFileName ?? '', coverDownload: d.coverDownload ?? false, createdMs: ms(d.createdAt),
 });
-const toTrack = (id: string, d: DocumentData): Track => ({
+const toTrack = (id: string, d: DocumentData, owner = ''): Track => ({
   id, projectId: d.projectId, title: d.title ?? '', stage: d.stage ?? 0, steps: Array.isArray(d.steps) ? d.steps : null, order: d.order ?? 0,
   awaitingReview: d.awaitingReview ?? false, currentVersionId: d.currentVersionId ?? null,
-  checklist: d.checklist ?? {}, links: d.links ?? {}, updatedMs: ms(d.updatedAt),
+  checklist: d.checklist ?? {}, links: d.links ?? {}, collaboratorIds: d.collaboratorIds ?? [], collaboratorUids: d.collaboratorUids ?? [],
+  ownerName: d.ownerName ?? '', ownerArtistId: owner, collaboratorNames: d.collaboratorNames ?? [], updatedMs: ms(d.updatedAt),
 });
 const toVersion = (id: string, d: DocumentData): Version => ({
   id, trackId: d.trackId, projectId: d.projectId, label: d.label ?? '', mp3FileId: d.mp3FileId ?? '',
@@ -96,13 +103,58 @@ export function useProjects(artistId: string | null) {
 }
 
 export function useTracks(artistId: string | null) {
-  const r = useCollection(artistId ? `artists/${artistId}/tracks` : null, toTrack);
+  const r = useCollection(artistId ? `artists/${artistId}/tracks` : null, (id, d) => toTrack(id, d, artistId ?? ''));
   return { tracks: [...r.items].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title)), loading: r.loading };
 }
 
-export function useVersions(artistId: string | null, trackId: string | null) {
-  const r = useCollection(artistId && trackId ? `artists/${artistId}/versions` : null, toVersion, trackId ? ['trackId', trackId] : undefined);
-  return { versions: [...r.items].sort((a, b) => b.createdMs - a.createdMs), loading: r.loading };
+export function useVersions(artistId: string | null, trackId: string | null, asCollaborator?: string) {
+  const [items, setItems] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!artistId || !trackId) { setLoading(false); return; }
+    setLoading(true);
+    const ref = collection(db, 'artists', artistId, 'versions');
+    // chi è in feat può leggere solo le versioni che lo includono: la query deve dirlo esplicitamente
+    const q = asCollaborator
+      ? query(ref, where('trackId', '==', trackId), where('collaboratorUids', 'array-contains', asCollaborator))
+      : query(ref, where('trackId', '==', trackId));
+    return onSnapshot(q, (s) => { setItems(s.docs.map((d) => toVersion(d.id, d.data()))); setLoading(false); }, () => setLoading(false));
+  }, [artistId, trackId, asCollaborator]);
+  return { versions: [...items].sort((a, b) => b.createdMs - a.createdMs), loading };
+}
+
+/** Un solo brano (serve a chi è in feat, che non può leggere tutti i brani dell'altro artista). */
+export function useTrackDoc(artistId: string | null, trackId: string | null) {
+  const [track, setTrack] = useState<Track | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!artistId || !trackId) { setLoading(false); return; }
+    return onSnapshot(doc(db, 'artists', artistId, 'tracks', trackId),
+      (s) => { setTrack(s.exists() ? toTrack(s.id, s.data(), artistId) : null); setLoading(false); },
+      () => { setTrack(null); setLoading(false); });
+  }, [artistId, trackId]);
+  return { track, loading };
+}
+
+export function useProjectDoc(artistId: string | null, projectId: string | null | undefined) {
+  const [project, setProject] = useState<Project | null>(null);
+  useEffect(() => {
+    if (!artistId || !projectId) return;
+    return onSnapshot(doc(db, 'artists', artistId, 'projects', projectId),
+      (s) => setProject(s.exists() ? toProject(s.id, s.data()) : null), () => setProject(null));
+  }, [artistId, projectId]);
+  return project;
+}
+
+/** Brani di altri artisti in cui questo account è in feat. */
+export function useSharedTracks(uid: string | null) {
+  const [tracks, setTracks] = useState<Track[]>([]);
+  useEffect(() => {
+    if (!uid) return;
+    return onSnapshot(query(collectionGroup(db, 'tracks'), where('collaboratorUids', 'array-contains', uid)),
+      (s) => setTracks(s.docs.map((d) => toTrack(d.id, d.data(), d.ref.parent.parent?.id ?? ''))), () => setTracks([]));
+  }, [uid]);
+  return tracks;
 }
 
 // ── scritture (solo admin, garantito dalle regole) ──
@@ -150,7 +202,7 @@ export async function deleteTrack(artistId: string, id: string) {
 }
 
 export async function addVersion(artistId: string, data: Omit<Version, 'id' | 'createdMs'>) {
-  const ref = await addDoc(collection(db, 'artists', artistId, 'versions'), { ...data, createdAt: serverTimestamp() });
+  const ref = await addDoc(collection(db, 'artists', artistId, 'versions'), { collaboratorUids: [], ...data, createdAt: serverTimestamp() });
   await updateTrack(artistId, data.trackId, { currentVersionId: ref.id, awaitingReview: true });
   return ref.id;
 }
@@ -161,4 +213,30 @@ export function updateVersion(artistId: string, id: string, data: Partial<Pick<V
 
 export function deleteVersion(artistId: string, id: string) {
   return deleteDoc(doc(db, 'artists', artistId, 'versions', id));
+}
+
+/**
+ * Feat: imposta gli altri artisti che vedono questo brano. Copia i loro account sul brano,
+ * sulle sue versioni, sulle note e sul progetto, così le regole di sicurezza li lasciano leggere.
+ */
+export async function setCollaborators(ownerId: string, ownerName: string, track: Track, collaboratorIds: string[]) {
+  const uids: string[] = [];
+  const names: string[] = [];
+  for (const id of collaboratorIds) {
+    const a = await getDoc(doc(db, 'artists', id));
+    uids.push(...((a.data()?.memberUids as string[] | undefined) ?? []));
+    if (a.data()?.stageName) names.push(a.data()!.stageName as string);
+  }
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'artists', ownerId, 'tracks', track.id), { collaboratorIds, collaboratorUids: uids, collaboratorNames: names, ownerName, updatedAt: serverTimestamp() });
+  const versions = await getDocs(query(collection(db, 'artists', ownerId, 'versions'), where('trackId', '==', track.id)));
+  versions.forEach((v) => batch.update(v.ref, { collaboratorUids: uids }));
+  const notes = await getDocs(query(collection(db, 'artists', ownerId, 'comments'), where('trackId', '==', track.id)));
+  notes.forEach((c) => batch.update(c.ref, { collaboratorUids: uids }));
+  // il progetto (titolo e copertina) lo vede chi è in feat in almeno un brano
+  const siblings = await getDocs(query(collection(db, 'artists', ownerId, 'tracks'), where('projectId', '==', track.projectId)));
+  const projectUids = new Set(uids);
+  siblings.forEach((t) => { if (t.id !== track.id) ((t.data().collaboratorUids as string[] | undefined) ?? []).forEach((u) => projectUids.add(u)); });
+  batch.update(doc(db, 'artists', ownerId, 'projects', track.projectId), { collaboratorUids: [...projectUids] });
+  await batch.commit();
 }

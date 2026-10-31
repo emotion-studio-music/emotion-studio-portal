@@ -1,13 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useArtist, useSettings } from '../../lib/data';
+import { useArtist, useArtists, useSettings } from '../../lib/data';
 import { useComments, type Comment } from '../../lib/comments';
 import { progressColor, progressOf } from '../../lib/steps';
 import { StepsEditor } from '../../components/StepsEditor';
 import { TrackProgress } from '../../components/TrackProgress';
 import {
   PROJECT_TYPES, addVersion, createProject, createTrack, deleteProject, deleteTrack, deleteVersion,
-  trackSteps, updateProject, updateTrack, updateVersion, useProjects, useTracks, useVersions,
+  setCollaborators, trackSteps, updateProject, updateTrack, updateVersion, useProjects, useTracks, useVersions,
   type Project, type ProjectType, type Track,
 } from '../../lib/music';
 import { analyzeAudio, formatTime } from '../../lib/audio';
@@ -231,6 +231,10 @@ function ProjectAdmin({ artist, project, tracks, template, comments }: ProjectAd
 
 function TrackAdmin({ artist, project, track, template, openNotes }: { artist: Artist; project: Project; track: Track; template: string[]; openNotes: number }) {
   const [open, setOpen] = useState(false);
+  const [featOpen, setFeatOpen] = useState(false);
+  const { artists } = useArtists();
+  const others = artists.filter((a) => a.id !== artist.id && a.active);
+  const featNames = track.collaboratorIds.map((id) => artists.find((a) => a.id === id)?.stageName).filter(Boolean);
   const [stepsOpen, setStepsOpen] = useState(false);
   const { versions } = useVersions(artist.id, open ? track.id : null);
   const [error, setError] = useState<string | null>(null);
@@ -243,6 +247,7 @@ function TrackAdmin({ artist, project, track, template, openNotes }: { artist: A
       <div className="track-row-head" style={{ flexWrap: 'wrap' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 16, fontWeight: 600 }}>{track.title}</span>
+          {featNames.length > 0 && <span className="badge badge-star">feat. {featNames.join(', ')}</span>}
           {openNotes > 0 && (
             <Link to={`/admin/artisti/${artist.id}/brani/${track.id}`} className="badge" style={{ background: 'rgba(241,109,47,.15)', color: 'var(--accent-soft)' }}>
               {openNotes === 1 ? '1 nota da risolvere' : `${openNotes} note da risolvere`}
@@ -266,6 +271,29 @@ function TrackAdmin({ artist, project, track, template, openNotes }: { artist: A
           {stepsOpen ? 'Chiudi il percorso' : `Percorso: ${progress.done}/${progress.total} step · modifica`}
         </span>
       </button>
+      <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setFeatOpen((v) => !v)} aria-expanded={featOpen}>
+        {featOpen ? 'Chiudi feat' : featNames.length ? 'Modifica feat' : '+ Feat con un altro artista'}
+      </button>
+      {featOpen && (
+        <div className="inset">
+          <span className="small" style={{ fontWeight: 600 }}>Artisti in feat</span>
+          <span className="tiny muted">Vedranno questo brano nel loro profilo (versioni, player, note e avanzamento). Lo carichi una volta sola, qui.</span>
+          {others.length === 0 ? <span className="small muted">Non ci sono altri artisti attivi.</span> : (
+            <div className="pick-wrap">
+              {others.map((a) => {
+                const on = track.collaboratorIds.includes(a.id);
+                return (
+                  <button key={a.id} type="button" className="pick" aria-pressed={on}
+                    onClick={() => void run(setCollaborators(artist.id, artist.stageName, track,
+                      on ? track.collaboratorIds.filter((x) => x !== a.id) : [...track.collaboratorIds, a.id]))}>
+                    {a.stageName}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
       {stepsOpen && (
         <div className="inset">
           <StepsEditor steps={steps} onChange={(next) => void run(updateTrack(artist.id, track.id, { steps: next }))} />
@@ -358,6 +386,7 @@ function UploadVersion({ artist, project, track, count }: { artist: Artist; proj
       await addVersion(artist.id, {
         trackId: track.id, projectId: project.id, label: label.trim() || suggested, mp3FileId: uploaded.id,
         fileName: file.name, size: file.size, peaks, duration, downloadEnabled, notes: notes.trim(),
+        collaboratorUids: track.collaboratorUids,
       });
       setStep('fatto'); setFile(null); setLabel(''); setNotes('');
     } catch (err) {
