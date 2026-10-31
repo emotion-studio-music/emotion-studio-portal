@@ -166,12 +166,12 @@ export function ArtistForm() {
                   onChange={(e) => { setEmail(e.target.value); setUserTouched(true); }} placeholder="jayden" />
                 <small>Minuscole, senza spazi. È quello che l’artista scrive per entrare.</small>
               </label>
-              <label className="field"><span>Password iniziale</span>
+              <label className="field"><span>Password (scrivila tu o usa quella proposta)</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input className="input" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} style={{ fontFamily: 'ui-monospace, Menlo, monospace' }} />
                   <button type="button" className="btn btn-sm" style={{ minHeight: 48 }} onClick={() => setPassword(generatePassword())}>Rigenera</button>
                 </div>
-                <small>L’artista potrà cambiarla dal suo profilo.</small>
+                <small>Almeno 8 caratteri. L’artista non può cambiarla: la decidi tu.</small>
               </label>
             </div>
           ) : (
@@ -201,6 +201,7 @@ function AccessControls({ id, email, uid, stageName, phone, active }: { id: stri
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [newPass, setNewPass] = useState<string | null>(null);
+  const [draftPass, setDraftPass] = useState<string | null>(null); // password che stai scegliendo
   const [editUser, setEditUser] = useState<string | null>(null);
   const username = usernameOf(email);
   const run = async (fn: () => Promise<unknown>, ok: string) => {
@@ -208,8 +209,9 @@ function AccessControls({ id, email, uid, stageName, phone, active }: { id: stri
     try { await fn(); setMsg({ ok: true, text: ok }); return true; } catch (e) { setMsg({ ok: false, text: errorMessage(e) }); return false; } finally { setBusy(false); }
   };
   const resetPassword = async () => {
-    const p = generatePassword();
-    if (await run(() => resetArtistPassword(uid, p), 'Nuova password impostata: mandala all’artista.')) setNewPass(p);
+    const p = (draftPass ?? '').trim();
+    if (p.length < 8) { setMsg({ ok: false, text: 'La password deve avere almeno 8 caratteri.' }); return; }
+    if (await run(() => resetArtistPassword(uid, p), 'Nuova password impostata: mandala all’artista.')) { setNewPass(p); setDraftPass(null); }
   };
   const appUrl = window.location.origin;
   const passText = newPass ? `Ciao ${stageName}, ecco i tuoi nuovi dati per Emotion Studio:\n${appUrl}\nNome utente: ${username}\nPassword: ${newPass}` : '';
@@ -239,6 +241,23 @@ function AccessControls({ id, email, uid, stageName, phone, active }: { id: stri
         </div>
       ) : null}
 
+      {draftPass !== null && (
+        <div className="inset">
+          <label className="field"><span>Nuova password (scrivila tu o usa quella proposta)</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="input" value={draftPass} onChange={(e) => setDraftPass(e.target.value)} autoComplete="off" spellCheck={false}
+                style={{ fontFamily: 'ui-monospace, Menlo, monospace' }} />
+              <button type="button" className="btn btn-sm" style={{ minHeight: 48 }} onClick={() => setDraftPass(generatePassword())}>Proponi</button>
+            </div>
+            <small>Almeno 8 caratteri.</small>
+          </label>
+          <div className="row-actions">
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void resetPassword()}>Imposta password</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDraftPass(null)}>Annulla</button>
+          </div>
+        </div>
+      )}
+
       {newPass && (
         <div className="inset">
           <div className="cred-box">
@@ -253,7 +272,7 @@ function AccessControls({ id, email, uid, stageName, phone, active }: { id: stri
       )}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button type="button" className="btn btn-sm" disabled={busy || !uid} onClick={() => void resetPassword()}>Nuova password</button>
+        {draftPass === null && <button type="button" className="btn btn-sm" disabled={busy || !uid} onClick={() => { setNewPass(null); setDraftPass(generatePassword()); }}>Nuova password</button>}
         {editUser === null && <button type="button" className="btn btn-sm" disabled={busy || !uid} onClick={() => setEditUser(isUsernameAccount(email) ? username : slugUsername(stageName))}>
           {isUsernameAccount(email) ? 'Cambia nome utente' : 'Passa a nome utente'}
         </button>}
