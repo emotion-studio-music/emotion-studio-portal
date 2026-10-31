@@ -12,6 +12,9 @@ import { Waveform, type Marker } from '../components/Waveform';
 import { Comments } from '../components/Comments';
 import { TrackProgress } from '../components/TrackProgress';
 import { Cover } from '../components/Cover';
+import { CoverDownload } from '../components/CoverDownload';
+import { quoteSummary, usePayments, useQuotes } from '../lib/business';
+import { eur } from '../lib/money';
 import { Loading } from '../components/Loading';
 import { IconArrowLeft } from '../components/Icons';
 
@@ -25,6 +28,10 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href }: Props)
   const { projects } = useProjects(artistId);
   const { versions, loading: vLoading } = useVersions(artistId, trackId);
   const comments = useComments(artistId, trackId);
+  const quotes = useQuotes(artistId);
+  const payments = usePayments(artistId);
+  const quote = quotes.find((q) => q.trackIds.includes(trackId));
+  const quoteLeft = quote ? quoteSummary(quote, payments).left : 0;
   const pl = usePlayer();
   const dummy = useMemo(() => new Audio(), []);
 
@@ -116,6 +123,16 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href }: Props)
           <h1 className="display" style={{ fontSize: 'clamp(36px, 11vw, 52px)', overflowWrap: 'anywhere' }}>{track.title}</h1>
         </div>
         <TrackProgress progress={progress} />
+        {(project || quote) && (
+          <div className="row-actions">
+            {project && <CoverDownload artistId={artistId} project={project} small />}
+            {quote && (
+              <span className="small muted">
+                Preventivo: {quote.title} · {quoteLeft > 0 ? `mancano ${eur(quoteLeft)}` : 'saldato ✓'}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="stack" style={{ paddingTop: 22 }}>

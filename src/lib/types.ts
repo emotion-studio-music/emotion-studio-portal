@@ -1,5 +1,7 @@
 import { DEFAULT_STEPS } from './steps';
 
+export const DEFAULT_SERVICES = ['Registrazione', 'Produzione', 'Arrangiamento', 'Beat', 'Mix', 'Master', 'Consulenza'];
+
 export interface ArtistLinks {
   instagram?: string;
   spotify?: string;
@@ -39,6 +41,8 @@ export interface StudioSettings {
   paymentNote: string;
   welcomeText: string;
   stepTemplate: string[]; // percorso predefinito dei nuovi brani
+  services: string[];     // servizi selezionabili nei preventivi
+  priceStep: number;      // scatto della tariffa in euro (es. 50)
 }
 
 export const emptySettings: StudioSettings = {
@@ -49,4 +53,6 @@ export const emptySettings: StudioSettings = {
   paymentNote: '',
   welcomeText: '',
   stepTemplate: DEFAULT_STEPS,
+  services: DEFAULT_SERVICES,
+  priceStep: 50,
 };

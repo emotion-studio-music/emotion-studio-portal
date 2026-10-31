@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { useArtist } from '../../lib/data';
-import { useProjects, useTracks } from '../../lib/music';
+import { useArtist, useSettings } from '../../lib/data';
+import { QuoteBuilder } from '../../components/QuoteBuilder';
+import { useTracks } from '../../lib/music';
 import {
-  PAYMENT_KIND, SESSION_TYPES, createPayment, createQuote, createSession, createTask, deletePayment, deleteQuote,
+  PAYMENT_KIND, SESSION_TYPES, createPayment, createSession, createTask, deletePayment, deleteQuote,
   deleteSession, deleteTask, fmtDay, quoteSummary, setTaskDone, todayKey, updatePayment, usePayments, useQuotes,
   useSessions, useTasks, type Payment, type PaymentKind, type Quote,
 } from '../../lib/business';
@@ -49,23 +50,10 @@ export function Manage() {
 function PaymentsTab({ artistId }: { artistId: string }) {
   const quotes = useQuotes(artistId).sort((a, b) => b.createdMs - a.createdMs);
   const payments = usePayments(artistId);
-  const { projects } = useProjects(artistId);
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [projectId, setProjectId] = useState('');
-  const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const { tracks } = useTracks(artistId);
+  const { settings } = useSettings();
   const total = quotes.reduce((s, q) => s + q.amountCents, 0);
   const left = quotes.reduce((s, q) => s + quoteSummary(q, payments).left, 0);
-
-  const add = async (e: FormEvent) => {
-    e.preventDefault();
-    const cents = parseEuro(amount);
-    if (!title.trim() || cents === null) { setError('Inserisci titolo e importo (es. 350 o 350,50).'); return; }
-    setError(null);
-    try { await createQuote(artistId, { title: title.trim(), amountCents: cents, projectId: projectId || null, note: note.trim() }); setTitle(''); setAmount(''); setNote(''); setProjectId(''); }
-    catch (err) { setError(errorMessage(err)); }
-  };
 
   return (
     <>
@@ -74,24 +62,7 @@ function PaymentsTab({ artistId }: { artistId: string }) {
         <div className="card card-pad stat-card"><span className="tiny muted">Ancora da incassare</span><span className="money-mid" style={{ color: left ? 'var(--accent-soft)' : 'var(--ok)' }}>{eur(left)}</span></div>
       </div>
 
-      <form className="card card-pad form" onSubmit={add}>
-        <h2 className="h2">Nuovo preventivo</h2>
-        <div className="grid-2">
-          <label className="field"><span>Per cosa</span><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Singolo “Notte Blu” – produzione, mix e master" /></label>
-          <label className="field"><span>Importo concordato (€)</span><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="600" /></label>
-        </div>
-        <div className="grid-2">
-          <label className="field"><span>Progetto (facoltativo)</span>
-            <select className="select" style={{ minHeight: 48 }} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              <option value="">Nessuno</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-            </select>
-          </label>
-          <label className="field"><span>Nota visibile all’artista</span><input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Include 2 revisioni del mix" /></label>
-        </div>
-        {error && <div className="alert alert-error" role="alert">{error}</div>}
-        <button className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }}>Crea preventivo</button>
-      </form>
+      <QuoteBuilder artistId={artistId} settings={settings} tracks={tracks} />
 
       {quotes.map((q) => <QuoteCard key={q.id} artistId={artistId} q={q} payments={payments} />)}
     </>
@@ -100,6 +71,8 @@ function PaymentsTab({ artistId }: { artistId: string }) {
 
 function QuoteCard({ artistId, q, payments }: { artistId: string; q: Quote; payments: Payment[] }) {
   const s = quoteSummary(q, payments);
+  const { tracks } = useTracks(artistId);
+  const names = q.trackIds.map((id) => tracks.find((t) => t.id === id)?.title).filter(Boolean);
   const [kind, setKind] = useState<PaymentKind>(s.payments.length ? 'saldo' : 'acconto');
   const [amount, setAmount] = useState('');
   const [due, setDue] = useState('');
@@ -128,6 +101,11 @@ function QuoteCard({ artistId, q, payments }: { artistId: string; q: Quote; paym
       </div>
       <div className="progress"><div style={{ width: `${pct}%` }} /></div>
       <span className="small muted">Incassato {eur(s.paid)} · {s.left > 0 ? `mancano ${eur(s.left)}` : 'saldato ✓'}</span>
+      {(names.length > 0 || q.note) && (
+        <span className="small muted">
+          {names.map((nm) => `${nm}${q.pricing === 'brano' ? ` ${eur(q.unitCents)}` : ''}`).join(' · ')}{q.note ? `${names.length ? ' — ' : ''}${q.note}` : ''}
+        </span>
+      )}
 
       {s.payments.length > 0 && (
         <div className="inset" style={{ gap: 0 }}>

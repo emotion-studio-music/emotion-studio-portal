@@ -14,7 +14,7 @@ export function Projects() {
         <h1 className="display" style={{ fontSize: 44 }}>Progetti</h1>
         {projects.length === 0
           ? <div className="empty"><strong>Ancora nessun progetto</strong>Singoli ed EP compariranno qui con lo stato di ogni brano.</div>
-          : <ProjectList projects={projects} tracks={tracks} trackHref={(t) => `/brano/${t.id}`} />}
+          : <ProjectList artistId={artistId!} projects={projects} tracks={tracks} trackHref={(t) => `/brano/${t.id}`} />}
       </div>
     </div>
   );

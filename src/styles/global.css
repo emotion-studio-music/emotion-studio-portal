@@ -492,3 +492,22 @@ a.stat-card:hover { color: var(--text); border-color: var(--line-strong); }
 .today-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; color: var(--text); flex-wrap: wrap; }
 .today-row + .today-row { border-top: 1px solid var(--line); }
 .today-row.link:hover { color: var(--accent-soft); }
+
+/* ── Fase F: rifiniture ── */
+.page-in { animation: page-in .28s var(--ease) both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.card { transition: border-color .2s, transform .2s var(--ease), box-shadow .2s; }
+a.card:hover, a.listen-card:hover { transform: translateY(-2px); }
+.card-glow { animation: glow-breathe 4s ease-in-out infinite; }
+@keyframes glow-breathe { 0%, 100% { box-shadow: 0 0 40px -12px rgba(241,109,47,.35); } 50% { box-shadow: 0 0 56px -8px rgba(241,109,47,.55); } }
+.pick { transition: background .15s, border-color .15s, color .15s, transform .12s var(--ease); }
+.pick:active { transform: scale(.96); }
+.pick-add { border-style: dashed; color: var(--accent-soft); }
+.quote-total {
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+  padding: 14px 16px; border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--line);
+}
+.quote-lines { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--bg); }
+.quote-lines > span { display: flex; justify-content: space-between; gap: 12px; }
+.tprogress-fill { animation: fill-in .9s var(--ease) both; transform-origin: left; }
+@keyframes fill-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }

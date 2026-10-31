@@ -12,6 +12,10 @@ export const fmtDay = (key: string) => (key ? new Date(`${key}T12:00`).toLocaleD
 
 export interface Quote {
   id: string; artistId: string; title: string; amountCents: number; projectId: string | null; note: string; createdMs: number;
+  services: string[];       // servizi concordati
+  trackIds: string[];       // brani coinvolti
+  pricing: 'brano' | 'totale';
+  unitCents: number;        // prezzo a brano (se pricing = 'brano')
 }
 
 export type PaymentStatus = 'da_pagare' | 'segnalato' | 'pagato';
@@ -34,6 +38,7 @@ export interface Session {
 
 const toQuote = (id: string, a: string, d: DocumentData): Quote => ({
   id, artistId: a, title: d.title ?? '', amountCents: d.amountCents ?? 0, projectId: d.projectId ?? null, note: d.note ?? '', createdMs: ms(d.createdAt),
+  services: d.services ?? [], trackIds: d.trackIds ?? [], pricing: d.pricing ?? 'totale', unitCents: d.unitCents ?? 0,
 });
 const toPayment = (id: string, a: string, d: DocumentData): Payment => ({
   id, artistId: a, quoteId: d.quoteId ?? '', kind: d.kind ?? 'altro', amountCents: d.amountCents ?? 0, status: d.status ?? 'da_pagare',
@@ -78,7 +83,7 @@ export function quoteSummary(q: Quote, payments: Payment[]) {
 const col = (a: string, name: string) => collection(db, 'artists', a, name);
 const ref = (a: string, name: string, id: string) => doc(db, 'artists', a, name, id);
 
-export const createQuote = (a: string, q: Pick<Quote, 'title' | 'amountCents' | 'projectId' | 'note'>) =>
+export const createQuote = (a: string, q: Pick<Quote, 'title' | 'amountCents' | 'projectId' | 'note'> & Partial<Pick<Quote, 'services' | 'trackIds' | 'pricing' | 'unitCents'>>) =>
   addDoc(col(a, 'quotes'), { ...q, createdAt: serverTimestamp() });
 export const updateQuote = (a: string, id: string, q: Partial<Pick<Quote, 'title' | 'amountCents' | 'note'>>) => updateDoc(ref(a, 'quotes', id), q);
 export const deleteQuote = (a: string, id: string) => deleteDoc(ref(a, 'quotes', id));
@@ -99,6 +104,12 @@ export const deleteTask = (a: string, id: string) => deleteDoc(ref(a, 'tasks', i
 export const createSession = (a: string, s: Pick<Session, 'date' | 'hours' | 'type' | 'description' | 'trackIds'>) =>
   addDoc(col(a, 'sessions'), { ...s, createdAt: serverTimestamp() });
 export const deleteSession = (a: string, id: string) => deleteDoc(ref(a, 'sessions', id));
+
+/** "Registrazione + Mix + Master" → titolo compatto "Rec + Mix + Master" */
+export function servicesTitle(services: string[]): string {
+  const short: Record<string, string> = { Registrazione: 'Rec' };
+  return services.map((x) => short[x] ?? x).join(' + ');
+}
 
 export const PAYMENT_KIND: Record<PaymentKind, string> = { acconto: 'Acconto', saldo: 'Saldo', altro: 'Pagamento' };
 export const PAY_METHODS = ['Bonifico', 'PayPal', 'Satispay', 'Carta', 'Contanti'];

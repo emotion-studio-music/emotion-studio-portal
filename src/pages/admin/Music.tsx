@@ -12,7 +12,7 @@ import {
 } from '../../lib/music';
 import { analyzeAudio, formatTime } from '../../lib/audio';
 import { compressImage } from '../../lib/image';
-import { ensureVersionsFolder } from '../../lib/drive';
+import { ensureVersionsFolder, uploadCoverOriginal } from '../../lib/drive';
 import { driveHealth, uploadToDrive, workerConfigured } from '../../lib/worker';
 import { errorMessage } from '../../lib/errors';
 import type { Artist } from '../../lib/types';
@@ -51,7 +51,7 @@ export function Music() {
         <button className="btn btn-primary" onClick={() => setShowNew((v) => !v)}><IconPlus width={18} height={18} /> Nuovo progetto</button>
       </div>
 
-      {showNew && <NewProject artistId={id} onDone={() => setShowNew(false)} />}
+      {showNew && <NewProject artist={artist} onDone={() => setShowNew(false)} />}
 
       {projects.length === 0 && !showNew && (
         <div className="empty"><strong>Nessun progetto</strong>Crea un singolo o un EP, poi aggiungi i brani e carica le versioni.</div>
@@ -65,18 +65,24 @@ export function Music() {
   );
 }
 
-function NewProject({ artistId, onDone }: { artistId: string; onDone: () => void }) {
+function NewProject({ artist, onDone }: { artist: Artist; onDone: () => void }) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<ProjectType>('singolo');
   const [releaseDate, setReleaseDate] = useState('');
   const [cover, setCover] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverDownload, setCoverDownload] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true); setError(null);
-    try { await createProject(artistId, { title: title.trim(), type, releaseDate, cover }); onDone(); }
+    try {
+      const ref = await createProject(artist.id, { title: title.trim(), type, releaseDate, cover, coverDownload });
+      if (coverFile && workerConfigured) await uploadCoverOriginal(artist, { id: ref.id, title: title.trim(), driveFolderId: null }, coverFile);
+      onDone();
+    }
     catch (err) { setError(errorMessage(err)); setBusy(false); }
   };
 
@@ -84,7 +90,8 @@ function NewProject({ artistId, onDone }: { artistId: string; onDone: () => void
     <form className="card card-pad form" onSubmit={submit}>
       <h2 className="h2">Nuovo progetto</h2>
       <ProjectFields title={title} setTitle={setTitle} type={type} setType={setType}
-        releaseDate={releaseDate} setReleaseDate={setReleaseDate} cover={cover} setCover={setCover} setError={setError} />
+        releaseDate={releaseDate} setReleaseDate={setReleaseDate} cover={cover} setCover={setCover} setError={setError}
+        setCoverFile={setCoverFile} coverDownload={coverDownload} setCoverDownload={setCoverDownload} />
       {error && <div className="alert alert-error" role="alert">{error}</div>}
       <div className="row-actions">
         <button className="btn btn-primary" disabled={busy}>{busy ? 'Creo…' : 'Crea progetto'}</button>
@@ -100,12 +107,14 @@ interface FieldsProps {
   releaseDate: string; setReleaseDate: (v: string) => void;
   cover: string | null; setCover: (v: string | null) => void;
   setError: (v: string | null) => void;
+  setCoverFile: (f: File | null) => void;
+  coverDownload: boolean; setCoverDownload: (v: boolean) => void;
 }
 
 function ProjectFields(p: FieldsProps) {
   const pick = async (f: File | undefined) => {
     if (!f) return;
-    try { p.setCover(await compressImage(f, 600, 0.82)); } catch (e) { p.setError(errorMessage(e)); }
+    try { p.setCover(await compressImage(f, 600, 0.82)); p.setCoverFile(f); } catch (e) { p.setError(errorMessage(e)); }
   };
   return (
     <>
@@ -116,9 +125,13 @@ function ProjectFields(p: FieldsProps) {
             {p.cover ? 'Cambia copertina' : 'Carica copertina'}
             <input type="file" accept="image/*" hidden onChange={(e) => void pick(e.target.files?.[0])} />
           </label>
-          {p.cover && <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.setCover(null)}>Rimuovi</button>}
+          {p.cover && <button type="button" className="btn btn-ghost btn-sm" onClick={() => { p.setCover(null); p.setCoverFile(null); }}>Rimuovi</button>}
         </div>
       </div>
+      <label className="check" style={{ alignItems: 'center' }}>
+        <input type="checkbox" checked={p.coverDownload} onChange={(e) => p.setCoverDownload(e.target.checked)} />
+        <span className="small">L’artista può scaricare la copertina originale (piena qualità, salvata su Drive)</span>
+      </label>
       <div className="grid-2">
         <label className="field"><span>Titolo *</span>
           <input className="input" required value={p.title} onChange={(e) => p.setTitle(e.target.value)} />
@@ -147,13 +160,22 @@ function ProjectAdmin({ artist, project, tracks, template, comments }: ProjectAd
   const [type, setType] = useState<ProjectType>(project.type);
   const [releaseDate, setReleaseDate] = useState(project.releaseDate);
   const [cover, setCover] = useState<string | null>(project.cover);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverDownload, setCoverDownload] = useState(project.coverDownload);
+  const [saving, setSaving] = useState(false);
   const [newTrack, setNewTrack] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const save = async (e: FormEvent) => {
     e.preventDefault(); setError(null);
-    try { await updateProject(artist.id, project.id, { title: title.trim(), type, releaseDate, cover }); setEditing(false); }
-    catch (err) { setError(errorMessage(err)); }
+    setSaving(true);
+    try {
+      await updateProject(artist.id, project.id, { title: title.trim(), type, releaseDate, cover, coverDownload, ...(cover ? {} : { coverFileId: null, coverFileName: '' }) });
+      if (coverFile && workerConfigured) await uploadCoverOriginal(artist, project, coverFile);
+      setCoverFile(null);
+      setEditing(false);
+    } catch (err) { setError(errorMessage(err)); }
+    finally { setSaving(false); }
   };
   const remove = async () => {
     if (!confirm(`Eliminare il progetto "${project.title}"?`)) return;
@@ -171,9 +193,11 @@ function ProjectAdmin({ artist, project, tracks, template, comments }: ProjectAd
       {editing ? (
         <form className="card-pad form" onSubmit={save}>
           <ProjectFields title={title} setTitle={setTitle} type={type} setType={setType}
-            releaseDate={releaseDate} setReleaseDate={setReleaseDate} cover={cover} setCover={setCover} setError={setError} />
+            releaseDate={releaseDate} setReleaseDate={setReleaseDate} cover={cover} setCover={setCover} setError={setError}
+            setCoverFile={setCoverFile} coverDownload={coverDownload} setCoverDownload={setCoverDownload} />
+          {cover && !coverFile && !project.coverFileId && <span className="tiny muted">Per rendere scaricabile la copertina in piena qualità ricaricala una volta: ora c’è solo la versione piccola.</span>}
           <div className="row-actions">
-            <button className="btn btn-primary btn-sm">Salva</button>
+            <button className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Salvo…' : 'Salva'}</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Annulla</button>
             <button type="button" className="btn btn-danger btn-sm" style={{ marginLeft: 'auto' }} onClick={() => void remove()}>Elimina progetto</button>
           </div>
@@ -183,7 +207,7 @@ function ProjectAdmin({ artist, project, tracks, template, comments }: ProjectAd
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', minWidth: 0 }}>
             <Cover src={project.cover} title={project.title} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="tiny muted" style={{ fontWeight: 600 }}>{PROJECT_TYPES.find((t) => t.value === project.type)?.label}{project.releaseDate ? ` · uscita ${new Date(project.releaseDate).toLocaleDateString('it-IT')}` : ''}</span>
+              <span className="tiny muted" style={{ fontWeight: 600 }}>{PROJECT_TYPES.find((t) => t.value === project.type)?.label}{project.releaseDate ? ` · uscita ${new Date(project.releaseDate).toLocaleDateString('it-IT')}` : ''}{project.coverFileId ? (project.coverDownload ? ' · copertina scaricabile' : ' · copertina su Drive') : ''}</span>
               <span className="h2">{project.title}</span>
             </div>
           </div>

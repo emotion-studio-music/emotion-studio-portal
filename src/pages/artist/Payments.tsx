@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../lib/auth';
 import { useArtist, useSettings } from '../../lib/data';
+import { useTracks } from '../../lib/music';
 import { PAYMENT_KIND, PAY_METHODS, fmtDay, quoteSummary, reportPaid, todayKey, usePayments, useQuotes, type Payment, type Quote } from '../../lib/business';
 import { eur, paypalLink } from '../../lib/money';
 import { errorMessage } from '../../lib/errors';
@@ -11,6 +12,8 @@ export function Payments() {
   const { settings } = useSettings();
   const quotes = useQuotes(artistId);
   const payments = usePayments(artistId);
+  const { tracks } = useTracks(artistId);
+  const trackName = (id: string) => tracks.find((t) => t.id === id)?.title;
 
   const open = payments.filter((p) => p.status !== 'pagato').sort((a, b) => (a.dueDate || '9').localeCompare(b.dueDate || '9'));
   const totalLeft = quotes.reduce((s, q) => s + quoteSummary(q, payments).left, 0);
@@ -50,6 +53,13 @@ export function Payments() {
                   </div>
                   <div className="progress"><div style={{ width: `${pct}%` }} /></div>
                   <span className="small muted">Pagato {eur(s.paid)} · {s.left > 0 ? `mancano ${eur(s.left)}` : 'saldato ✓'}</span>
+                  {q.trackIds.length > 0 && (
+                    <div className="quote-lines">
+                      {q.trackIds.map((id) => (
+                        <span key={id} className="small"><span>{trackName(id) ?? 'Brano'}</span>{q.pricing === 'brano' && <span className="muted">{eur(q.unitCents)}</span>}</span>
+                      ))}
+                    </div>
+                  )}
                   {q.note && <span className="small muted" style={{ whiteSpace: 'pre-line' }}>{q.note}</span>}
                   {s.payments.filter((p) => p.status === 'pagato').map((p) => (
                     <span key={p.id} className="tiny muted">✓ {PAYMENT_KIND[p.kind]} {eur(p.amountCents)}{p.paidDate ? ` · ${fmtDay(p.paidDate)}` : ''}{p.invoiceNumber ? ` · fattura ${p.invoiceNumber}` : ''}</span>

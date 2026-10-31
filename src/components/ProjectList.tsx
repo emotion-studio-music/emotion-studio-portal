@@ -6,14 +6,16 @@ import { useSettings } from '../lib/data';
 import { trackSteps } from '../lib/music';
 import { progressOf } from '../lib/steps';
 import { Cover } from './Cover';
+import { CoverDownload } from './CoverDownload';
 
 interface Props {
+  artistId: string;
   projects: Project[];
   tracks: Track[];
   trackHref: (t: Track) => string;
 }
 
-export function ProjectList({ projects, tracks, trackHref }: Props) {
+export function ProjectList({ artistId, projects, tracks, trackHref }: Props) {
   const { settings } = useSettings();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -29,6 +31,7 @@ export function ProjectList({ projects, tracks, trackHref }: Props) {
                 </span>
                 <span className="h2" style={{ overflowWrap: 'anywhere' }}>{p.title}</span>
                 {p.releaseDate && <span className="small muted">Uscita prevista {new Date(p.releaseDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span>}
+                <div style={{ marginTop: 4 }}><CoverDownload artistId={artistId} project={p} small /></div>
               </div>
             </div>
             {list.map((t) => (

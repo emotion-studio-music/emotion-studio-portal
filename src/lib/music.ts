@@ -22,6 +22,9 @@ export interface Project {
   releaseDate: string; // "2026-12-01" o ''
   driveFolderId: string | null;
   versionsFolderId: string | null;
+  coverFileId: string | null;   // copertina originale su Drive
+  coverFileName: string;
+  coverDownload: boolean;       // l'artista può scaricarla
   createdMs: number;
 }
 
@@ -58,7 +61,8 @@ const ms = (t: unknown) => (t as Timestamp | undefined)?.toMillis?.() ?? Date.no
 
 const toProject = (id: string, d: DocumentData): Project => ({
   id, title: d.title ?? '', type: d.type ?? 'singolo', cover: d.cover ?? null, releaseDate: d.releaseDate ?? '',
-  driveFolderId: d.driveFolderId ?? null, versionsFolderId: d.versionsFolderId ?? null, createdMs: ms(d.createdAt),
+  driveFolderId: d.driveFolderId ?? null, versionsFolderId: d.versionsFolderId ?? null,
+  coverFileId: d.coverFileId ?? null, coverFileName: d.coverFileName ?? '', coverDownload: d.coverDownload ?? false, createdMs: ms(d.createdAt),
 });
 const toTrack = (id: string, d: DocumentData): Track => ({
   id, projectId: d.projectId, title: d.title ?? '', stage: d.stage ?? 0, steps: Array.isArray(d.steps) ? d.steps : null, order: d.order ?? 0,
@@ -102,8 +106,9 @@ export function useVersions(artistId: string | null, trackId: string | null) {
 
 // ── scritture (solo admin, garantito dalle regole) ──
 
-export function createProject(artistId: string, data: Pick<Project, 'title' | 'type' | 'cover' | 'releaseDate'>) {
+export function createProject(artistId: string, data: Pick<Project, 'title' | 'type' | 'cover' | 'releaseDate'> & { coverDownload?: boolean }) {
   return addDoc(collection(db, 'artists', artistId, 'projects'), {
+    coverFileId: null, coverFileName: '', coverDownload: false,
     ...data, driveFolderId: null, versionsFolderId: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
   });
 }

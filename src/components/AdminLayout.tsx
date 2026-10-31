@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { MiniPlayer } from './MiniPlayer';
 import { IconCalendar, IconDisc, IconLogout, IconSettings, IconUsers } from './Icons';
@@ -9,6 +9,7 @@ export function AdminLayout() {
   const { user, logout } = useAuth();
   const newDemos = useAllDemos(true).filter((d) => d.status === 'nuova').length;
   const today = useToday();
+  const { pathname } = useLocation();
   return (
     <div className="admin-app">
       <aside className="sidebar">
@@ -35,7 +36,7 @@ export function AdminLayout() {
         </div>
       </aside>
       <main className="admin-main">
-        <div className="admin-inner">
+        <div key={pathname} className="admin-inner page-in">
           <Outlet />
         </div>
       </main>

@@ -10,7 +10,7 @@ import { trackSteps } from '../../lib/music';
 import { progressOf, progressColor } from '../../lib/steps';
 import { IconArrowLeft, IconCalendar } from '../../components/Icons';
 import type { NextSession } from '../../lib/types';
-import { isUpcoming, longDate, monthShort, parseAt, relativeDay, timeOf } from '../../lib/dates';
+import { dayMonth, isUpcoming, monthShort, parseAt, relativeDay, timeOf } from '../../lib/dates';
 
 function NextSessionCard({ session }: { session: NextSession }) {
   const d = parseAt(session.at);
@@ -39,7 +39,7 @@ function NextSessionCard({ session }: { session: NextSession }) {
         <span style={{ fontSize: 16, fontWeight: 600 }}>
           {relativeDay(d)} ore {timeOf(d)}{session.type ? ` · ${session.type}` : ''}
         </span>
-        <span className="small muted">{longDate(d)}{session.note ? ` — ${session.note}` : ''}</span>
+        <span className="small muted">{dayMonth(d)}{session.note ? ` — ${session.note}` : ''}</span>
       </div>
     </div>
   );
@@ -140,7 +140,7 @@ export function ArtistHome({ artistId, preview }: Props) {
               Singoli ed EP compariranno qui con lo stato di ogni brano, da “Ricevuto” a “Pubblicato”.
             </div>
           ) : (
-            <ProjectList projects={projects.slice(0, 2)} tracks={tracks} trackHref={trackHref} />
+            <ProjectList artistId={artistId} projects={projects.slice(0, 2)} tracks={tracks} trackHref={trackHref} />
           )}
         </section>
 

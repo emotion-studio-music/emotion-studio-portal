@@ -61,3 +61,8 @@ export function monthShort(d: Date): string {
 export function isUpcoming(d: Date): boolean {
   return d.getTime() + 6 * 3_600_000 > Date.now();
 }
+
+/** "2 novembre" */
+export function dayMonth(d: Date): string {
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}

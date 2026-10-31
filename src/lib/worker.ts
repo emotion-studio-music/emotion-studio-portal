@@ -23,10 +23,19 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 }
 
 /** URL temporaneo (3 ore) per ascoltare o scaricare una versione. */
-export async function mediaUrl(artistId: string, id: string, download = false, kind: 'version' | 'demo' = 'version'): Promise<string> {
-  const body = kind === 'demo' ? { artistId, demoId: id, download } : { artistId, versionId: id, download };
+export async function mediaUrl(artistId: string, id: string, download = false, kind: 'version' | 'demo' | 'cover' = 'version'): Promise<string> {
+  const body = kind === 'demo' ? { artistId, demoId: id, download }
+    : kind === 'cover' ? { artistId, projectId: id, download: true }
+    : { artistId, versionId: id, download };
   const { url } = await call<{ url: string }>('/media/token', body);
   return url;
+}
+
+/** Crea l'account dell'artista dal Worker (se configurato). null = usa il metodo nel browser. */
+export async function createUserOnServer(email: string, password: string): Promise<string | null> {
+  if (!BASE) return null;
+  const r = await call<{ uid?: string; skipped?: boolean }>('/admin/create-user', { email, password });
+  return r.skipped || !r.uid ? null : r.uid;
 }
 
 /** Cartella Drive dell'artista (la trova o la crea il Worker, così admin e artista usano la stessa). */

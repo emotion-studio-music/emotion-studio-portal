@@ -4,6 +4,7 @@ import {
 } from 'firebase/auth';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, firebaseConfig } from './firebase';
+import { createUserOnServer } from './worker';
 import type { Artist } from './types';
 
 export type ArtistInput = Omit<Artist, 'id' | 'memberUids' | 'memberEmails' | 'active' | 'driveFolderId'>;
@@ -12,28 +13,40 @@ export type ArtistInput = Omit<Artist, 'id' | 'memberUids' | 'memberEmails' | 'a
  * Crea l'account dell'artista (email + password) e il suo profilo.
  * Usa una seconda istanza di Firebase, così l'admin resta collegato.
  */
-export async function createArtist(email: string, password: string, data: ArtistInput, privateNotes: string) {
-  const cleanEmail = email.trim().toLowerCase();
+async function createAccount(email: string, password: string): Promise<string> {
+  // 1) dal Worker, se ha il service account (così la registrazione dall'esterno può restare chiusa)
+  try {
+    const uid = await createUserOnServer(email, password);
+    if (uid) return uid;
+  } catch (e) {
+    if ((e as Error).message?.includes('Esiste già')) throw e;
+  }
+  // 2) altrimenti dal browser, con una seconda istanza di Firebase (l'admin resta collegato)
   const secondary = initializeApp(firebaseConfig, `crea-artista-${Date.now()}`);
   try {
     const secAuth = getAuth(secondary);
-    const cred = await createUserWithEmailAndPassword(secAuth, cleanEmail, password);
-    const uid = cred.user.uid;
+    const cred = await createUserWithEmailAndPassword(secAuth, email, password);
     await signOut(secAuth);
-    const ref = await addDoc(collection(db, 'artists'), {
-      ...data,
-      memberUids: [uid],
-      memberEmails: [cleanEmail],
-      active: true,
-      driveFolderId: null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    await setDoc(doc(db, 'artists', ref.id, 'private', 'admin'), { notes: privateNotes });
-    return ref.id;
+    return cred.user.uid;
   } finally {
     await deleteApp(secondary);
   }
+}
+
+export async function createArtist(email: string, password: string, data: ArtistInput, privateNotes: string) {
+  const cleanEmail = email.trim().toLowerCase();
+  const uid = await createAccount(cleanEmail, password);
+  const ref = await addDoc(collection(db, 'artists'), {
+    ...data,
+    memberUids: [uid],
+    memberEmails: [cleanEmail],
+    active: true,
+    driveFolderId: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  await setDoc(doc(db, 'artists', ref.id, 'private', 'admin'), { notes: privateNotes });
+  return ref.id;
 }
 
 export function updateArtist(id: string, data: Partial<ArtistInput>) {

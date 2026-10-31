@@ -1,7 +1,7 @@
 # Emotion Studio · area artisti
 
 Web app privata di Emotion Studio: ogni artista trova brani, progressi, sessioni e pagamenti.
-Fasi completate: **A** (accesso, ruoli, profili artista, impostazioni studio, design "Notturno") **B** (progetti, brani, versioni MP3 su Google Drive, player con forma d'onda) **C** (note sulla forma d'onda, confronto A/B, loop, mini player, percorso del brano) **D** (demo degli artisti, anche registrate dal telefono) ed **E** (preventivi e pagamenti, sessioni, task, vista "Oggi").
+Fasi completate: **A** (accesso, ruoli, profili artista, impostazioni studio, design "Notturno") **B** (progetti, brani, versioni MP3 su Google Drive, player con forma d'onda) **C** (note sulla forma d'onda, confronto A/B, loop, mini player, percorso del brano) **D** (demo degli artisti, anche registrate dal telefono) **E** (preventivi e pagamenti, sessioni, task, vista "Oggi") e **F** (preventivi a clic, copertine scaricabili, app installabile, sottodominio, rifiniture).
 
 Questa guida è scritta per chi non è sviluppatore. Basta seguire i passaggi in ordine.
 
@@ -257,9 +257,43 @@ note degli artisti da risolvere, demo nuove, task scaduti o tuoi, pagamenti scad
 
 Le fatture continui a emetterle dal tuo programma: nell'app annoti solo il numero.
 
+---
+
+## Fase F · Preventivi a clic, copertine, app installabile, sottodominio
+
+**Aggiorna il Worker** (Cloudflare → `emotion-api` → Modifica codice → incolla `worker/worker.js` → Deploy): serve per scaricare le copertine.
+
+**Preventivi a clic** – In "Lavori e pagamenti → Pagamenti": tocchi i servizi, i brani (o "+ nuovo brano"), "A brano" o "Totale",
+la tariffa (pulsanti a scatti di 50 €, − / +, oppure un importo a mano) e il pagamento ("Ancora niente", "Acconto 50% pagato oggi",
+"Pagato tutto oggi", "Chiedi all'artista"). Il titolo e il totale si scrivono da soli. Servizi e scatto si cambiano in Impostazioni studio.
+
+**Copertine scaricabili** – Quando carichi la copertina di un progetto, l'app tiene la versione piccola per la grafica e salva
+l'**originale** su Drive (cartella del progetto). Spunta "L'artista può scaricare la copertina" e all'artista compare **Scarica copertina**
+nel progetto e nella pagina del brano. Le copertine caricate prima della Fase F vanno ricaricate una volta.
+
+**App installabile** – Il sito ora si installa come app (icona, schermo intero, apertura veloce). Su Android/Chrome nel Profilo
+compare **Installa ora**; su iPhone si usa Safari → Condividi → Aggiungi alla schermata Home (la guida è nel Profilo).
+
+### Sottodominio emotionstudio.efamusic.it
+1. Console Firebase → **Hosting** → **Aggiungi dominio personalizzato** → scrivi `emotionstudio.efamusic.it` → Continua.
+2. Firebase ti mostra uno o più **record DNS** (di solito un TXT e un A, o un CNAME). Tienili aperti.
+3. Nel pannello del fornitore del dominio efamusic.it (dove lo rinnovi) apri la gestione **DNS** e aggiungi quei record
+   **identici**, con nome/host `emotionstudio`. Il sottodominio non costa nulla.
+4. Torna su Firebase e premi **Verifica**. Il certificato https può richiedere da qualche minuto a 24 ore.
+5. Firebase → Authentication → **Impostazioni → Domini autorizzati** → **Aggiungi dominio** → `emotionstudio.efamusic.it`.
+6. Nel Worker la variabile `ALLOWED_ORIGINS` contiene già `https://emotionstudio.efamusic.it`: controlla solo che ci sia.
+7. Da quel momento dai agli artisti il nuovo indirizzo. Anche `emotion-studio.web.app` continua a funzionare.
+
+### Facoltativo: chiudere del tutto le registrazioni dall'esterno
+1. Firebase → Impostazioni progetto → **Account di servizio** → **Genera nuova chiave privata** → si scarica un file JSON.
+2. Cloudflare → `emotion-api` → Impostazioni → Variabili e segreti → **Aggiungi** → tipo *Segreto*, nome `FIREBASE_SA_JSON`,
+   valore: **tutto il contenuto** del file JSON (aprilo con TextEdit/Blocco note, copia e incolla) → Deploy.
+3. Crea un artista di prova: se funziona, gli account ora li crea il Worker.
+4. Firebase → Authentication → Impostazioni → **Azioni utente** → togli la spunta a **Abilita creazione (registrazione)** → Salva.
+5. Cancella il file JSON dal computer: è una chiave riservata (resta solo dentro Cloudflare).
+
 ## Cosa arriva nelle prossime fasi
 
-- **F** – installazione come app, sottodominio, rifiniture e animazioni
 - **G** – notifiche push ed email, invito sessione nel calendario, feat tra artisti, foto con punto focale, icone social, traguardi e badge
 
 ---

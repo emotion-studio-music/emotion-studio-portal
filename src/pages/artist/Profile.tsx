@@ -6,13 +6,33 @@ import { errorMessage } from '../../lib/errors';
 import { COOKIE_URL, PRIVACY_URL } from '../../lib/legal';
 import { Loading } from '../../components/Loading';
 
+type InstallEvt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
+
 function InstallGuide() {
   const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const installed = typeof window !== 'undefined' && (window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone);
   const [os, setOs] = useState<'ios' | 'android'>(isIOS ? 'ios' : 'android');
+  const [prompt, setPrompt] = useState<InstallEvt | undefined>((window as unknown as { installPrompt?: InstallEvt }).installPrompt);
+  if (installed) {
+    return (
+      <section className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <h2 className="h2">App installata ✓</h2>
+        <p className="small muted" style={{ margin: 0 }}>Stai usando Emotion Studio come app dalla schermata Home.</p>
+      </section>
+    );
+  }
+  const install = async () => {
+    if (!prompt) return;
+    await prompt.prompt();
+    await prompt.userChoice;
+    (window as unknown as { installPrompt?: InstallEvt }).installPrompt = undefined;
+    setPrompt(undefined);
+  };
   return (
     <section className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <h2 className="h2">Installa l’app sul telefono</h2>
       <p className="small muted" style={{ margin: 0 }}>Così la apri dalla home come una normale app, a schermo intero.</p>
+      {prompt && <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => void install()}>Installa ora</button>}
       <div className="seg" role="group" aria-label="Sistema operativo">
         <button type="button" aria-pressed={os === 'ios'} onClick={() => setOs('ios')}>iPhone</button>
         <button type="button" aria-pressed={os === 'android'} onClick={() => setOs('android')}>Android</button>

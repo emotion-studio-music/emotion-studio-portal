@@ -17,7 +17,7 @@ export function Settings() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true); setMsg(null);
-    try { await saveSettings({ ...form, stepTemplate: form.stepTemplate.map((x) => x.trim()).filter(Boolean) }); setMsg({ ok: true, text: 'Impostazioni salvate.' }); }
+    try { await saveSettings({ ...form, stepTemplate: form.stepTemplate.map((x) => x.trim()).filter(Boolean), services: form.services.map((x) => x.trim()).filter(Boolean) }); setMsg({ ok: true, text: 'Impostazioni salvate.' }); }
     catch (err) { setMsg({ ok: false, text: errorMessage(err) }); }
     finally { setBusy(false); }
   };
@@ -44,6 +44,19 @@ export function Settings() {
           <label className="field"><span>Testo breve (facoltativo)</span>
             <textarea className="textarea" value={form.welcomeText} onChange={(e) => set('welcomeText', e.target.value)} placeholder="Studio chiuso dal 24 al 27 dicembre." />
           </label>
+        </section>
+        <section className="card card-pad form">
+          <h2 className="h2">Preventivi</h2>
+          <p className="small muted" style={{ margin: 0 }}>I servizi che selezioni con un clic quando crei un preventivo, e lo scatto della tariffa.</p>
+          <label className="field"><span>Servizi (uno per riga)</span>
+            <textarea className="textarea" style={{ minHeight: 170 }} value={form.services.join('\n')}
+              onChange={(e) => setForm((f) => ({ ...f, services: e.target.value.split('\n') }))} />
+          </label>
+          <div className="field"><span>Scatto della tariffa</span>
+            <div className="pick-wrap">
+              {[10, 25, 50, 100].map((v) => <button key={v} type="button" className="pick" aria-pressed={form.priceStep === v} onClick={() => setForm((f) => ({ ...f, priceStep: v }))}>{v} €</button>)}
+            </div>
+          </div>
         </section>
         <section className="card card-pad form">
           <h2 className="h2">Percorso dei brani</h2>

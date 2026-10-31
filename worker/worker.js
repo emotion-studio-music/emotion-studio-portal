@@ -16,6 +16,7 @@
  *   GOOGLE_CLIENT_SECRET  secret
  *   GOOGLE_REFRESH_TOKEN  secret
  *   SIGNING_KEY           secret  stringa casuale lunga (almeno 32 caratteri)
+ *   FIREBASE_SA_JSON      secret  (facoltativo) chiave JSON del service account Firebase, per creare gli account artisti
  */
 
 const DRIVE = 'https://www.googleapis.com/drive/v3';
@@ -174,10 +175,19 @@ async function sign(env, msg) {
 async function mediaToken(req, env) {
   const user = await verifyUser(req, env);
   const body = await req.json();
-  const { artistId, versionId, demoId, download } = body || {};
-  if (!safeId(artistId) || !(safeId(versionId) || safeId(demoId))) throw new HttpError(400, 'Richiesta non valida.');
+  const { artistId, versionId, demoId, projectId, download } = body || {};
+  if (!safeId(artistId) || !(safeId(versionId) || safeId(demoId) || safeId(projectId))) throw new HttpError(400, 'Richiesta non valida.');
   let fileId, fileName;
-  if (demoId) {
+  if (projectId) {
+    // Copertina originale del progetto: l'artista la scarica solo se lo studio l'ha permesso.
+    const p = await readDocAsUser(env, user, `artists/${artistId}/projects/${projectId}`);
+    if (!p || !p.coverFileId || !safeId(p.coverFileId)) throw new HttpError(404, 'Copertina non disponibile.');
+    if (p.coverDownload !== true && !(await readDocAsUser(env, user, `admins/${user.uid}`))) {
+      throw new HttpError(403, 'La copertina non è ancora scaricabile.');
+    }
+    fileId = p.coverFileId;
+    fileName = p.coverFileName || `${p.title || 'copertina'}.jpg`;
+  } else if (demoId) {
     // Demo caricata dall'artista: il file deve essere davvero una demo di QUESTO artista.
     const d = await readDocAsUser(env, user, `artists/${artistId}/demos/${demoId}`);
     if (!d || !d.fileId || !safeId(d.fileId)) throw new HttpError(404, 'Demo non trovata.');
@@ -275,6 +285,65 @@ async function proxyUpload(req, env) {
   const res = await fetch(target, { method: 'PUT', body });
   if (!res.ok) throw new HttpError(502, 'Caricamento su Drive non riuscito.');
   return await res.json();
+}
+
+// ───────────── account artisti (facoltativo: serve il service account) ─────────────
+
+let saToken = { value: null, exp: 0 };
+
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function getServiceToken(env) {
+  if (saToken.value && Date.now() < saToken.exp) return saToken.value;
+  let sa;
+  try { sa = JSON.parse(env.FIREBASE_SA_JSON); } catch { throw new HttpError(500, 'Chiave del service account non leggibile.'); }
+  const now = Math.floor(Date.now() / 1000);
+  const head = bytesToB64url(enc.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })));
+  const claim = bytesToB64url(enc.encode(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/firebase',
+    aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600,
+  })));
+  const pem = String(sa.private_key).replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
+  const key = await crypto.subtle.importKey('pkcs8', b64ToBytes(pem), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = bytesToB64url(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode(`${head}.${claim}`)));
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${head}.${claim}.${sig}` }),
+  });
+  if (!res.ok) throw new HttpError(502, 'Il service account non è stato accettato da Google.');
+  const data = await res.json();
+  saToken = { value: data.access_token, exp: Date.now() + (data.expires_in - 120) * 1000 };
+  return saToken.value;
+}
+
+/** Crea l'account dell'artista dal server: così la registrazione dall'esterno può restare chiusa. */
+async function createUser(req, env) {
+  await requireAdmin(req, env);
+  if (!env.FIREBASE_SA_JSON) return { skipped: true };
+  const { email, password } = await req.json();
+  if (typeof email !== 'string' || !email.includes('@') || typeof password !== 'string' || password.length < 8) {
+    throw new HttpError(400, 'Email o password non valide.');
+  }
+  const token = await getServiceToken(env);
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/accounts`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const code = data?.error?.message || '';
+    if (code.includes('EMAIL_EXISTS')) throw new HttpError(409, 'Esiste già un account con questa email.');
+    throw new HttpError(502, 'Non riesco a creare l’account.');
+  }
+  return { uid: data.localId };
 }
 
 // ───────────── cartelle dell'artista (stesse per admin e artista) ─────────────
@@ -403,6 +472,7 @@ export default {
       if (req.method === 'POST' && pathname === '/admin/upload') return json(await startUpload(req, env), 200, req, env);
       if (req.method === 'PUT' && pathname === '/admin/upload-proxy') return json(await proxyUpload(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/artist-folder') return json(await adminArtistFolder(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/admin/create-user') return json(await createUser(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/demo-trash') return json(await trashDemo(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/artist/upload') return json(await artistUpload(req, env), 200, req, env);
       if (req.method === 'PUT' && pathname === '/artist/upload-proxy') return json(await artistUploadProxy(req, env), 200, req, env);
