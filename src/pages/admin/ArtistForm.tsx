@@ -4,9 +4,10 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useArtist } from '../../lib/data';
 import {
-  createArtist, credentialsMessage, savePrivateNotes, sendReset, setArtistActive, updateArtist,
+  changeUsername, createArtist, credentialsMessage, resetArtistPassword, savePrivateNotes, setArtistActive, updateArtist,
   whatsappLink, type ArtistInput,
 } from '../../lib/admin';
+import { isUsernameAccount, slugUsername, usernameOf } from '../../lib/username';
 import { generatePassword } from '../../lib/password';
 import { compressImage } from '../../lib/image';
 import { errorMessage } from '../../lib/errors';
@@ -20,7 +21,7 @@ const empty: ArtistInput = {
   links: { instagram: '', spotify: '', tiktok: '', youtube: '' }, nextSession: emptySession,
 };
 
-interface Created { id: string; stageName: string; email: string; password: string; phone: string }
+interface Created { id: string; stageName: string; username: string; password: string; phone: string }
 
 export function ArtistForm() {
   const { id } = useParams();
@@ -29,7 +30,8 @@ export function ArtistForm() {
   const { artist, loading } = useArtist(id);
   const [form, setForm] = useState<ArtistInput>(empty);
   const [genresText, setGenresText] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('');        // in creazione: il nome utente
+  const [userTouched, setUserTouched] = useState(false);
   const [password, setPassword] = useState(generatePassword());
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -74,8 +76,9 @@ export function ArtistForm() {
     };
     try {
       if (isNew) {
-        const newId = await createArtist(email, password, data, notes);
-        setCreated({ id: newId, stageName: data.stageName, email: email.trim().toLowerCase(), password, phone: data.phone });
+        const username = email.includes('@') ? email.trim().toLowerCase() : slugUsername(email);
+        const newId = await createArtist(username, password, data, notes);
+        setCreated({ id: newId, stageName: data.stageName, username, password, phone: data.phone });
       } else if (id) {
         await updateArtist(id, data);
         await savePrivateNotes(id, notes);
@@ -125,7 +128,7 @@ export function ArtistForm() {
           </div>
           <div className="grid-2">
             <label className="field"><span>Nome d’arte *</span>
-              <input className="input" required value={form.stageName} onChange={(e) => set('stageName', e.target.value)} />
+              <input className="input" required value={form.stageName} onChange={(e) => { set('stageName', e.target.value); if (isNew && !userTouched) setEmail(slugUsername(e.target.value)); }} />
             </label>
             <label className="field"><span>Nome e cognome</span>
               <input className="input" value={form.realName} onChange={(e) => set('realName', e.target.value)} />
@@ -158,8 +161,10 @@ export function ArtistForm() {
           <h2 className="h2">Accesso</h2>
           {isNew ? (
             <div className="grid-2">
-              <label className="field"><span>Email *</span>
-                <input className="input" type="email" required autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <label className="field"><span>Nome utente *</span>
+                <input className="input" required autoComplete="off" autoCapitalize="none" spellCheck={false} value={email}
+                  onChange={(e) => { setEmail(e.target.value); setUserTouched(true); }} placeholder="jayden" />
+                <small>Minuscole, senza spazi. È quello che l’artista scrive per entrare.</small>
               </label>
               <label className="field"><span>Password iniziale</span>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -170,7 +175,7 @@ export function ArtistForm() {
               </label>
             </div>
           ) : (
-            <AccessControls id={id!} email={email} active={artist!.active} />
+            <AccessControls id={id!} email={email} uid={artist!.memberUids[0] ?? ''} stageName={artist!.stageName} phone={artist!.phone} active={artist!.active} />
           )}
         </section>
 
@@ -192,27 +197,66 @@ export function ArtistForm() {
   );
 }
 
-function AccessControls({ id, email, active }: { id: string; email: string; active: boolean }) {
+function AccessControls({ id, email, uid, stageName, phone, active }: { id: string; email: string; uid: string; stageName: string; phone: string; active: boolean }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [newPass, setNewPass] = useState<string | null>(null);
+  const [editUser, setEditUser] = useState<string | null>(null);
+  const username = usernameOf(email);
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true); setMsg(null);
-    try { await fn(); setMsg({ ok: true, text: ok }); } catch (e) { setMsg({ ok: false, text: errorMessage(e) }); } finally { setBusy(false); }
+    try { await fn(); setMsg({ ok: true, text: ok }); return true; } catch (e) { setMsg({ ok: false, text: errorMessage(e) }); return false; } finally { setBusy(false); }
   };
+  const resetPassword = async () => {
+    const p = generatePassword();
+    if (await run(() => resetArtistPassword(uid, p), 'Nuova password impostata: mandala all’artista.')) setNewPass(p);
+  };
+  const appUrl = window.location.origin;
+  const passText = newPass ? `Ciao ${stageName}, ecco i tuoi nuovi dati per Emotion Studio:\n${appUrl}\nNome utente: ${username}\nPassword: ${newPass}` : '';
+
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span className="tiny muted">Email di accesso</span>
-          <span style={{ overflowWrap: 'anywhere' }}>{email}</span>
+          <span className="tiny muted">{isUsernameAccount(email) ? 'Nome utente' : 'Accesso (vecchio formato con email)'}</span>
+          <span style={{ overflowWrap: 'anywhere', fontWeight: 600 }}>{username}</span>
         </div>
         <span className={`badge ${active ? 'badge-on' : 'badge-off'}`}>{active ? 'Attivo' : 'Disattivato'}</span>
       </div>
+
+      {editUser !== null ? (
+        <div className="inset">
+          <label className="field"><span>Nuovo nome utente</span>
+            <input className="input" value={editUser} autoCapitalize="none" spellCheck={false} onChange={(e) => setEditUser(e.target.value)} placeholder="jayden" />
+          </label>
+          <div className="row-actions">
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy || !slugUsername(editUser)}
+              onClick={() => void run(() => changeUsername(id, uid, slugUsername(editUser)), `Nome utente cambiato in “${slugUsername(editUser)}”.`).then((ok) => ok && setEditUser(null))}>
+              Salva nome utente
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditUser(null)}>Annulla</button>
+          </div>
+        </div>
+      ) : null}
+
+      {newPass && (
+        <div className="inset">
+          <div className="cred-box">
+            <span><span className="muted">Nome utente </span>{username}</span>
+            <span><span className="muted">Password </span>{newPass}</span>
+          </div>
+          <div className="row-actions">
+            {phone && <a className="btn btn-primary btn-sm" href={whatsappLink(phone, passText)} target="_blank" rel="noreferrer">Invia su WhatsApp</a>}
+            <button type="button" className="btn btn-sm" onClick={() => void navigator.clipboard?.writeText(passText)}>Copia messaggio</button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button type="button" className="btn btn-sm" disabled={busy}
-          onClick={() => void run(() => sendReset(email), `Email per reimpostare la password inviata a ${email}.`)}>
-          Invia email per nuova password
-        </button>
+        <button type="button" className="btn btn-sm" disabled={busy || !uid} onClick={() => void resetPassword()}>Nuova password</button>
+        {editUser === null && <button type="button" className="btn btn-sm" disabled={busy || !uid} onClick={() => setEditUser(isUsernameAccount(email) ? username : slugUsername(stageName))}>
+          {isUsernameAccount(email) ? 'Cambia nome utente' : 'Passa a nome utente'}
+        </button>}
         <button type="button" className={`btn btn-sm ${active ? 'btn-danger' : ''}`} disabled={busy}
           onClick={() => {
             if (active && !confirm('Disattivare l’artista? Non potrà più entrare finché non lo riattivi. I dati restano salvati.')) return;
@@ -228,7 +272,7 @@ function AccessControls({ id, email, active }: { id: string; email: string; acti
 
 function CreatedPanel({ c, onDone }: { c: Created; onDone: () => void }) {
   const appUrl = window.location.origin;
-  const text = credentialsMessage(c.stageName, c.email, c.password, appUrl);
+  const text = credentialsMessage(c.stageName, c.username, c.password, appUrl);
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try { await navigator.clipboard.writeText(text); setCopied(true); } catch { setCopied(false); }
@@ -241,7 +285,7 @@ function CreatedPanel({ c, onDone }: { c: Created; onDone: () => void }) {
       </p>
       <div className="cred-box">
         <span><span className="muted">Indirizzo </span>{appUrl}</span>
-        <span><span className="muted">Email </span>{c.email}</span>
+        <span><span className="muted">Nome utente </span>{c.username}</span>
         <span><span className="muted">Password </span>{c.password}</span>
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

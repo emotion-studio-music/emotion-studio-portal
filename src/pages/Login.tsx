@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { errorMessage } from '../lib/errors';
+import { toLoginEmail } from '../lib/username';
 
 export function Login() {
   const [mode, setMode] = useState<'login' | 'reset'>('login');
@@ -16,8 +17,12 @@ export function Login() {
     setBusy(true); setError(null); setInfo(null);
     try {
       if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        await signInWithEmailAndPassword(auth, toLoginEmail(email), password);
       } else {
+        if (!email.includes('@')) {
+          setInfo('Per una nuova password scrivi allo studio: te la prepara in un attimo.');
+          return;
+        }
         await sendPasswordResetEmail(auth, email.trim());
         setInfo('Se l’email è registrata, riceverai un link per scegliere una nuova password. Controlla anche lo spam.');
       }
@@ -37,14 +42,14 @@ export function Login() {
             <h1 className="h2">{mode === 'login' ? 'Entra nella tua area' : 'Recupera la password'}</h1>
             <p className="small muted" style={{ margin: '6px 0 0' }}>
               {mode === 'login'
-                ? 'Usa l’email e la password che ti ha dato lo studio.'
-                : 'Inserisci la tua email: ti mandiamo un link per sceglierne una nuova.'}
+                ? 'Usa il nome utente e la password che ti ha dato lo studio.'
+                : 'Gli artisti chiedono una nuova password direttamente allo studio. Se entri con un’email, inseriscila qui.'}
             </p>
           </div>
           <form className="form" onSubmit={submit}>
             <label className="field">
-              <span>Email</span>
-              <input className="input" type="email" autoComplete="email" inputMode="email" required
+              <span>{mode === 'login' ? 'Nome utente' : 'Email'}</span>
+              <input className="input" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required
                 value={email} onChange={(e) => setEmail(e.target.value)} />
             </label>
             {mode === 'login' && (

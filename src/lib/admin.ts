@@ -4,7 +4,8 @@ import {
 } from 'firebase/auth';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, firebaseConfig } from './firebase';
-import { createUserOnServer } from './worker';
+import { createUserOnServer, updateUserOnServer } from './worker';
+import { toLoginEmail } from './username';
 import type { Artist } from './types';
 
 export type ArtistInput = Omit<Artist, 'id' | 'memberUids' | 'memberEmails' | 'active' | 'driveFolderId'>;
@@ -33,8 +34,9 @@ async function createAccount(email: string, password: string): Promise<string> {
   }
 }
 
-export async function createArtist(email: string, password: string, data: ArtistInput, privateNotes: string) {
-  const cleanEmail = email.trim().toLowerCase();
+/** username: nome utente scelto dallo studio (oppure un'email vera, se preferisci). */
+export async function createArtist(username: string, password: string, data: ArtistInput, privateNotes: string) {
+  const cleanEmail = toLoginEmail(username);
   const uid = await createAccount(cleanEmail, password);
   const ref = await addDoc(collection(db, 'artists'), {
     ...data,
@@ -71,9 +73,22 @@ export function whatsappLink(phone: string, text: string) {
   return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
 }
 
-export function credentialsMessage(stageName: string, email: string, password: string, appUrl: string) {
+export function credentialsMessage(stageName: string, username: string, password: string, appUrl: string) {
   return `Ciao ${stageName}! Benvenuto in Emotion Studio 🎧\n` +
-    `Da oggi trovi brani, progressi e sessioni nella tua area riservata:\n${appUrl}\n\n` +
-    `Email: ${email}\nPassword: ${password}\n\n` +
-    `Al primo accesso puoi cambiarla dal tuo Profilo. Dal profilo trovi anche come installare l'app sul telefono.`;
+    `Da oggi trovi brani, progressi, demo e sessioni nella tua area riservata:\n${appUrl}\n\n` +
+    `Nome utente: ${username}\nPassword: ${password}\n\n` +
+    `Conserva questo messaggio. Nel Profilo trovi come installare l'app sul telefono.`;
+}
+
+/** Nuova password generata dallo studio (serve il service account nel Worker). */
+export async function resetArtistPassword(uid: string, password: string) {
+  await updateUserOnServer(uid, { password });
+}
+
+/** Cambia il nome utente: aggiorna l'account e il profilo dell'artista. */
+export async function changeUsername(artistId: string, uid: string, username: string) {
+  const email = toLoginEmail(username);
+  await updateUserOnServer(uid, { email });
+  await updateDoc(doc(db, 'artists', artistId), { memberEmails: [email], updatedAt: serverTimestamp() });
+  return email;
 }

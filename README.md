@@ -284,11 +284,18 @@ compare **Installa ora**; su iPhone si usa Safari → Condividi → Aggiungi all
 6. Nel Worker la variabile `ALLOWED_ORIGINS` contiene già `https://emotionstudio.efamusic.it`: controlla solo che ci sia.
 7. Da quel momento dai agli artisti il nuovo indirizzo. Anche `emotion-studio.web.app` continua a funzionare.
 
-### Facoltativo: chiudere del tutto le registrazioni dall'esterno
+### Nome utente e password degli artisti
+Gli artisti entrano con un **nome utente** (es. `jayden`) e la password che decidi tu: niente email.
+Dietro le quinte l'app usa un indirizzo interno che non riceve posta (`jayden@artisti.efamusic.it`).
+L'artista non può cambiare la password: se la perde, dal suo profilo admin premi **Nuova password** e gliela mandi su WhatsApp.
+Per "Nuova password" e "Cambia nome utente" serve la chiave del service account nel Worker (passaggi qui sotto).
+Gli artisti creati prima con un'email inventata: apri il profilo → **Passa a nome utente**.
+
+### Chiave del service account (consigliata) e registrazioni chiuse
 1. Firebase → Impostazioni progetto → **Account di servizio** → **Genera nuova chiave privata** → si scarica un file JSON.
 2. Cloudflare → `emotion-api` → Impostazioni → Variabili e segreti → **Aggiungi** → tipo *Segreto*, nome `FIREBASE_SA_JSON`,
    valore: **tutto il contenuto** del file JSON (aprilo con TextEdit/Blocco note, copia e incolla) → Deploy.
-3. Crea un artista di prova: se funziona, gli account ora li crea il Worker.
+3. Prova "Nuova password" su un artista: se funziona, la chiave è a posto (ora anche gli account li crea il Worker).
 4. Firebase → Authentication → Impostazioni → **Azioni utente** → togli la spunta a **Abilita creazione (registrazione)** → Salva.
 5. Cancella il file JSON dal computer: è una chiave riservata (resta solo dentro Cloudflare).
 

@@ -16,7 +16,8 @@
  *   GOOGLE_CLIENT_SECRET  secret
  *   GOOGLE_REFRESH_TOKEN  secret
  *   SIGNING_KEY           secret  stringa casuale lunga (almeno 32 caratteri)
- *   FIREBASE_SA_JSON      secret  (facoltativo) chiave JSON del service account Firebase, per creare gli account artisti
+ *   FIREBASE_SA_JSON      secret  chiave JSON del service account Firebase: serve per creare gli account
+ *                                 e per cambiare nome utente / password degli artisti
  */
 
 const DRIVE = 'https://www.googleapis.com/drive/v3';
@@ -346,6 +347,36 @@ async function createUser(req, env) {
   return { uid: data.localId };
 }
 
+/** Cambia nome utente (email interna) e/o password di un artista. Solo studio, serve il service account. */
+async function updateUser(req, env) {
+  await requireAdmin(req, env);
+  if (!env.FIREBASE_SA_JSON) throw new HttpError(501, 'Per cambiare password o nome utente serve la chiave del service account nel Worker (vedi README, Fase F).');
+  const { uid, email, password } = await req.json();
+  if (!safeId(uid)) throw new HttpError(400, 'Utente non valido.');
+  const body = { localId: uid };
+  if (email !== undefined) {
+    if (typeof email !== 'string' || !email.includes('@')) throw new HttpError(400, 'Nome utente non valido.');
+    body.email = email.trim().toLowerCase();
+  }
+  if (password !== undefined) {
+    if (typeof password !== 'string' || password.length < 8) throw new HttpError(400, 'La password deve avere almeno 8 caratteri.');
+    body.password = password;
+  }
+  const token = await getServiceToken(env);
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/accounts:update`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const code = data?.error?.message || '';
+    if (code.includes('EMAIL_EXISTS')) throw new HttpError(409, 'Questo nome utente è già usato da un altro artista.');
+    throw new HttpError(502, 'Non riesco ad aggiornare l’account.');
+  }
+  return { ok: true };
+}
+
 // ───────────── cartelle dell'artista (stesse per admin e artista) ─────────────
 
 const FOLDER = 'application/vnd.google-apps.folder';
@@ -472,6 +503,7 @@ export default {
       if (req.method === 'POST' && pathname === '/admin/upload') return json(await startUpload(req, env), 200, req, env);
       if (req.method === 'PUT' && pathname === '/admin/upload-proxy') return json(await proxyUpload(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/artist-folder') return json(await adminArtistFolder(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/admin/update-user') return json(await updateUser(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/create-user') return json(await createUser(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/demo-trash') return json(await trashDemo(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/artist/upload') return json(await artistUpload(req, env), 200, req, env);

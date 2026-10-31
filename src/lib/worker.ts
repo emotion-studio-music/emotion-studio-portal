@@ -38,6 +38,11 @@ export async function createUserOnServer(email: string, password: string): Promi
   return r.skipped || !r.uid ? null : r.uid;
 }
 
+/** Cambia nome utente (email interna) e/o password di un artista. Richiede il service account nel Worker. */
+export function updateUserOnServer(uid: string, data: { email?: string; password?: string }) {
+  return call<{ ok: boolean }>('/admin/update-user', { uid, ...data });
+}
+
 /** Cartella Drive dell'artista (la trova o la crea il Worker, così admin e artista usano la stessa). */
 export function resolveArtistFolder(artistId: string) {
   return call<{ artistFolderId: string; rootId: string | null }>('/admin/artist-folder', { artistId });

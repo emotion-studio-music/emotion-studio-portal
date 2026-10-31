@@ -1,9 +1,8 @@
-import { useState, type FormEvent } from 'react';
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { useState } from 'react';
 import { useAuth } from '../../lib/auth';
 import { useArtist } from '../../lib/data';
-import { errorMessage } from '../../lib/errors';
 import { COOKIE_URL, PRIVACY_URL } from '../../lib/legal';
+import { usernameOf } from '../../lib/username';
 import { Loading } from '../../components/Loading';
 
 type InstallEvt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
@@ -56,48 +55,6 @@ function InstallGuide() {
   );
 }
 
-function ChangePassword() {
-  const { user } = useAuth();
-  const [current, setCurrent] = useState('');
-  const [next, setNext] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user?.email) return;
-    if (next.length < 8) { setMsg({ ok: false, text: 'La nuova password deve avere almeno 8 caratteri.' }); return; }
-    setBusy(true); setMsg(null);
-    try {
-      await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, current));
-      await updatePassword(user, next);
-      setCurrent(''); setNext('');
-      setMsg({ ok: true, text: 'Password cambiata.' });
-    } catch (err) {
-      setMsg({ ok: false, text: errorMessage(err) });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section className="card card-pad">
-      <form className="form" onSubmit={submit}>
-        <h2 className="h2">Cambia password</h2>
-        <label className="field"><span>Password attuale</span>
-          <input className="input" type="password" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} />
-        </label>
-        <label className="field"><span>Nuova password</span>
-          <input className="input" type="password" autoComplete="new-password" required value={next} onChange={(e) => setNext(e.target.value)} />
-          <small>Almeno 8 caratteri.</small>
-        </label>
-        {msg && <div className={`alert ${msg.ok ? 'alert-ok' : 'alert-error'}`} role="status">{msg.text}</div>}
-        <button className="btn btn-primary" disabled={busy}>{busy ? 'Attendi…' : 'Cambia password'}</button>
-      </form>
-    </section>
-  );
-}
-
 export function Profile() {
   const { artistId, user, logout } = useAuth();
   const { artist, loading } = useArtist(artistId);
@@ -120,7 +77,7 @@ export function Profile() {
 
         <section className="card list">
           <div className="card-pad" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-            <span className="muted small">Email di accesso</span><span className="small" style={{ overflowWrap: 'anywhere' }}>{user?.email}</span>
+            <span className="muted small">Nome utente</span><span className="small" style={{ overflowWrap: 'anywhere' }}>{usernameOf(user?.email ?? '')}</span>
           </div>
           {artist.phone && (
             <div className="card-pad" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
@@ -137,7 +94,7 @@ export function Profile() {
         <p className="tiny muted" style={{ margin: '-18px 0 0' }}>Per modificare questi dati scrivi allo studio.</p>
 
         <InstallGuide />
-        <ChangePassword />
+        <p className="small muted" style={{ margin: 0 }}>Hai perso la password? Scrivi allo studio: te ne prepara una nuova.</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
           <button className="btn btn-danger" onClick={() => void logout()}>Esci</button>
