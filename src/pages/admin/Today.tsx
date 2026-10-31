@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useToday } from '../../lib/today';
 import { useArtists } from '../../lib/data';
-import { PAYMENT_KIND, fmtDay, setTaskDone, todayKey, updatePayment } from '../../lib/business';
+import { PAYMENT_KIND, fmtDay, setTaskDone, todayKey, updatePayment, type Task } from '../../lib/business';
 import { eur } from '../../lib/money';
 import { formatTime } from '../../lib/audio';
 import { isUpcoming, longDate, parseAt, timeOf } from '../../lib/dates';
@@ -70,19 +70,10 @@ export function Today() {
         </Block>
       )}
 
-      {t.dueTasks.length > 0 && (
-        <Block title="Task in scadenza o per te">
-          {t.dueTasks.map((k) => (
-            <label key={k.id} className="today-row check" style={{ alignItems: 'center' }}>
-              <input type="checkbox" checked={k.done} onChange={(e) => void setTaskDone(k.artistId, k.id, e.target.checked)} />
-              <span style={{ flex: 1 }}>
-                <strong>{name(k.artistId)}</strong> · {k.title}
-                <span className="tiny" style={{ display: 'block', color: k.dueDate && k.dueDate < todayKey() ? 'var(--danger)' : 'var(--muted)' }}>
-                  {k.assignee === 'admin' ? 'Tocca a te' : 'Tocca all’artista'}{k.dueDate ? ` · ${k.dueDate < todayKey() ? 'scaduto il' : 'entro'} ${fmtDay(k.dueDate)}` : ''}
-                </span>
-              </span>
-            </label>
-          ))}
+      {(t.myTasks.length > 0 || t.artistTasks.length > 0) && (
+        <Block title="Task">
+          {t.myTasks.map((k) => <TaskRow key={k.id} k={k} who="Tocca a te" name={name(k.artistId)} />)}
+          {t.artistTasks.map((k) => <TaskRow key={k.id} k={k} who="Tocca all’artista" name={name(k.artistId)} />)}
         </Block>
       )}
 
@@ -106,6 +97,23 @@ export function Today() {
         ))}
       </Block>
     </>
+  );
+}
+
+function TaskRow({ k, who, name }: { k: Task; who: string; name: string }) {
+  const late = k.dueDate && k.dueDate < todayKey();
+  const isToday = k.dueDate === todayKey();
+  return (
+    <label className="today-row check" style={{ alignItems: 'center' }}>
+      <input type="checkbox" checked={k.done} onChange={(e) => void setTaskDone(k.artistId, k.id, e.target.checked)} />
+      <span style={{ flex: 1 }}>
+        <strong>{name}</strong> · {k.title}
+        <span className="tiny" style={{ display: 'block', color: late ? 'var(--danger)' : isToday ? 'var(--amber)' : 'var(--muted)' }}>
+          {who}{k.dueDate ? ` · ${late ? 'scaduto il' : isToday ? 'scade oggi' : 'entro'} ${isToday ? '' : fmtDay(k.dueDate)}` : ''}
+        </span>
+      </span>
+      <Link to={`/admin/artisti/${k.artistId}/gestione?tab=task`} className="btn btn-ghost btn-sm" onClick={(e) => e.stopPropagation()}>Apri</Link>
+    </label>
   );
 }
 
