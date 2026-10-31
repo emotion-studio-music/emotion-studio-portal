@@ -1,6 +1,12 @@
+import { focusStyle } from '../../lib/types';
 import { Link } from 'react-router-dom';
 import { useArtist, useSettings } from '../../lib/data';
 import { Loading } from '../../components/Loading';
+import { useNextSession } from '../../lib/calendar';
+import { useAuth } from '../../lib/auth';
+import { useBadges } from '../../lib/useBadges';
+import { Celebration } from '../../components/Celebration';
+import { SocialLinks } from '../../components/SocialLinks';
 import { useProjects, useTracks, type Track } from '../../lib/music';
 import { ProjectList } from '../../components/ProjectList';
 import { Cover } from '../../components/Cover';
@@ -54,6 +60,10 @@ interface Props {
 export function ArtistHome({ artistId, preview }: Props) {
   const { artist, loading } = useArtist(artistId);
   const { settings } = useSettings();
+  const nextSession = useNextSession(artistId, artist?.nextSession);
+  const { user } = useAuth();
+  const badgeState = useBadges(artistId, artist?.createdMs ?? Date.now(), user?.uid ?? null, !preview);
+  const party = badgeState.fresh[0];
   const { projects } = useProjects(artistId);
   const { tracks } = useTracks(artistId);
   const toListen = tracks.filter((t) => t.awaitingReview);
@@ -72,9 +82,10 @@ export function ArtistHome({ artistId, preview }: Props) {
 
   return (
     <div className="artist-main">
+      {party && <Celebration badge={party} track={badgeState.tracks.find((t) => t.id === party.trackId)} onClose={() => badgeState.dismiss(party.id)} />}
       <header className="hero">
         {artist.photo
-          ? <img className="hero-photo" src={artist.photo} alt="" />
+          ? <img className="hero-photo" src={artist.photo} alt="" style={focusStyle(artist.photoFocus)} />
           : <div className="hero-fallback" />}
         <div className="hero-top">
           {preview
@@ -84,6 +95,7 @@ export function ArtistHome({ artistId, preview }: Props) {
         <div className="hero-bottom">
           <span className="hero-kicker">Artista di Emotion Studio</span>
           <h1 className="display hero-name">{artist.stageName}</h1>
+          <SocialLinks links={artist.links} />
           {artist.genres.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
               {artist.genres.map((g) => <span key={g} className="chip">{g}</span>)}
@@ -93,7 +105,7 @@ export function ArtistHome({ artistId, preview }: Props) {
       </header>
 
       <div className="stack">
-        <NextSessionCard session={artist.nextSession} />
+        <NextSessionCard session={nextSession.session ?? artist.nextSession} />
 
         {settings.welcomeText && (
           <p className="small muted" style={{ margin: 0, whiteSpace: 'pre-line' }}>{settings.welcomeText}</p>

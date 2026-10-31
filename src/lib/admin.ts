@@ -8,7 +8,7 @@ import { createUserOnServer, updateUserOnServer } from './worker';
 import { toLoginEmail } from './username';
 import type { Artist } from './types';
 
-export type ArtistInput = Omit<Artist, 'id' | 'memberUids' | 'memberEmails' | 'active' | 'driveFolderId'>;
+export type ArtistInput = Omit<Artist, 'id' | 'memberUids' | 'memberEmails' | 'active' | 'driveFolderId' | 'createdMs'>;
 
 /**
  * Crea l'account dell'artista (email + password) e il suo profilo.

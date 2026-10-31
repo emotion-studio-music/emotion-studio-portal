@@ -13,11 +13,12 @@ import { compressImage } from '../../lib/image';
 import { errorMessage } from '../../lib/errors';
 import { Loading } from '../../components/Loading';
 import { SessionPicker } from '../../components/SessionPicker';
-import { emptySession } from '../../lib/types';
+import { FocusPicker } from '../../components/FocusPicker';
+import { defaultFocus, emptySession } from '../../lib/types';
 import { IconArrowLeft, IconCopy, IconEye, IconImage } from '../../components/Icons';
 
 const empty: ArtistInput = {
-  stageName: '', realName: '', bio: '', photo: null, genres: [], phone: '',
+  stageName: '', realName: '', bio: '', photo: null, photoFocus: defaultFocus, genres: [], phone: '',
   links: { instagram: '', spotify: '', tiktok: '', youtube: '' }, nextSession: emptySession,
 };
 
@@ -45,7 +46,7 @@ export function ArtistForm() {
     if (!artist || loadedId.current === artist.id) return;
     loadedId.current = artist.id;
     setForm({
-      stageName: artist.stageName, realName: artist.realName, bio: artist.bio, photo: artist.photo,
+      stageName: artist.stageName, realName: artist.realName, bio: artist.bio, photo: artist.photo, photoFocus: artist.photoFocus,
       genres: artist.genres, phone: artist.phone, links: { ...empty.links, ...artist.links }, nextSession: artist.nextSession,
     });
     setGenresText(artist.genres.join(', '));
@@ -63,7 +64,7 @@ export function ArtistForm() {
 
   const pickPhoto = async (file: File | undefined) => {
     if (!file) return;
-    try { set('photo', await compressImage(file)); setError(null); } catch (e) { setError(errorMessage(e)); }
+    try { set('photo', await compressImage(file, 1080)); set('photoFocus', defaultFocus); setError(null); } catch (e) { setError(errorMessage(e)); }
   };
 
   const submit = async (e: FormEvent) => {
@@ -126,6 +127,11 @@ export function ArtistForm() {
               <small className="tiny muted">Verticale, meglio su fondo scuro. Viene ridotta in automatico.</small>
             </div>
           </div>
+          {form.photo && (
+            <div className="field"><span>Inquadratura: tocca il viso</span>
+              <FocusPicker src={form.photo} value={form.photoFocus} onChange={(f) => set('photoFocus', f)} />
+            </div>
+          )}
           <div className="grid-2">
             <label className="field"><span>Nome d’arte *</span>
               <input className="input" required value={form.stageName} onChange={(e) => { set('stageName', e.target.value); if (isNew && !userTouched) setEmail(slugUsername(e.target.value)); }} />
@@ -154,6 +160,10 @@ export function ArtistForm() {
 
         <section className="card card-pad form">
           <h2 className="h2">Prossima sessione</h2>
+          <p className="small muted" style={{ margin: 0 }}>
+            Se usi Google Calendar collegato all’app, la prossima sessione arriva da lì in automatico (eventi con “{form.stageName || 'nome artista'}” nel titolo).
+            Questo campo serve solo se non è in calendario.
+          </p>
           <SessionPicker value={form.nextSession} onChange={(v) => set('nextSession', v)} />
         </section>
 

@@ -269,7 +269,8 @@ function TrackAdmin({ artist, project, track, template, openNotes }: { artist: A
       {stepsOpen && (
         <div className="inset">
           <StepsEditor steps={steps} onChange={(next) => void run(updateTrack(artist.id, track.id, { steps: next }))} />
-          <span className="tiny muted">L’artista vede solo la barra e il prossimo step, non questa lista.</span>
+          <span className="tiny muted">L’artista vede solo la barra e il prossimo step, non questa lista. Quando spunti tutti gli step, per lui scatta la festa “Il tuo brano è sugli store”.</span>
+          <StoreLinks links={track.links} onSave={(links) => void run(updateTrack(artist.id, track.id, { links }))} />
         </div>
       )}
       {error && <div className="alert alert-error" role="alert">{error}</div>}
@@ -303,6 +304,22 @@ function TrackAdmin({ artist, project, track, template, openNotes }: { artist: A
           }}>Elimina brano</button>
         </div>
       )}
+    </div>
+  );
+}
+
+function StoreLinks({ links, onSave }: { links: Track['links']; onSave: (l: Track['links']) => void }) {
+  const [v, setV] = useState(links);
+  const changed = JSON.stringify(v) !== JSON.stringify(links);
+  return (
+    <div className="form" style={{ gap: 10, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+      <span className="small" style={{ fontWeight: 600 }}>Link agli store (quando è uscito)</span>
+      <div className="grid-2">
+        <input className="input" placeholder="Link Spotify" value={v.spotify ?? ''} onChange={(e) => setV({ ...v, spotify: e.target.value.trim() })} />
+        <input className="input" placeholder="Link Apple Music" value={v.apple ?? ''} onChange={(e) => setV({ ...v, apple: e.target.value.trim() })} />
+      </div>
+      <input className="input" placeholder="Link YouTube" value={v.youtube ?? ''} onChange={(e) => setV({ ...v, youtube: e.target.value.trim() })} />
+      {changed && <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => onSave(v)}>Salva link</button>}
     </div>
   );
 }

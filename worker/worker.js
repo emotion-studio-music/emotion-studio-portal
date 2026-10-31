@@ -18,6 +18,7 @@
  *   SIGNING_KEY           secret  stringa casuale lunga (almeno 32 caratteri)
  *   FIREBASE_SA_JSON      secret  chiave JSON del service account Firebase: serve per creare gli account
  *                                 e per cambiare nome utente / password degli artisti
+ *   CALENDAR_ICS_URL      secret  (facoltativo) "indirizzo segreto in formato iCal" del Google Calendar dello studio
  */
 
 const DRIVE = 'https://www.googleapis.com/drive/v3';
@@ -377,6 +378,117 @@ async function updateUser(req, env) {
   return { ok: true };
 }
 
+// ───────────── Google Calendar dello studio (indirizzo segreto iCal) ─────────────
+
+const SESSION_WORDS = [['registrazione', 'Registrazione'], ['rec', 'Registrazione'], ['mixing', 'Mix'], ['mix', 'Mix'],
+  ['mastering', 'Mastering'], ['master', 'Mastering'], ['produzione', 'Produzione'], ['prod', 'Produzione'],
+  ['scrittura', 'Scrittura'], ['video', 'Video'], ['consulenza', 'Consulenza']];
+let icsCache = { at: 0, events: null };
+
+function romeParts(d) {
+  const f = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+  const o = Object.fromEntries(f.formatToParts(d).map((x) => [x.type, x.value]));
+  return `${o.year}-${o.month}-${o.day}T${o.hour === '24' ? '00' : o.hour}:${o.minute}`;
+}
+
+/** Valore DTSTART → "AAAA-MM-GGTHH:mm" ora di Roma + timestamp per ordinare */
+function icsTime(value, params) {
+  if (/VALUE=DATE/.test(params) || /^\d{8}$/.test(value)) {
+    const local = `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T09:00`;
+    return { local, allDay: true, ms: Date.parse(`${local}:00Z`) - 3600_000 };
+  }
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/.exec(value);
+  if (!m) return null;
+  if (m[7] === 'Z') {
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+    return { local: romeParts(d), allDay: false, ms: d.getTime() };
+  }
+  // ora "di parete" (TZID=Europe/Rome o senza fuso): la teniamo così com'è
+  const local = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`;
+  return { local, allDay: false, ms: Date.parse(`${local}:00Z`) - 3600_000 };
+}
+
+function unescapeIcs(t) { return t.replace(/\\n/gi, ' ').replace(/\\([,;\\])/g, '$1').trim(); }
+
+/** Prossima ricorrenza (solo DAILY/WEEKLY, i casi tipici di uno studio) */
+function nextOccurrence(start, rrule, now) {
+  const r = Object.fromEntries(rrule.split(';').map((kv) => kv.split('=')));
+  const step = r.FREQ === 'DAILY' ? 86_400_000 : r.FREQ === 'WEEKLY' ? 7 * 86_400_000 : 0;
+  if (!step) return start.ms >= now ? start : null;
+  const interval = (Number(r.INTERVAL) || 1) * step;
+  let k = start.ms >= now ? 0 : Math.ceil((now - start.ms) / interval);
+  if (r.COUNT && k >= Number(r.COUNT)) return null;
+  const ms = start.ms + k * interval;
+  if (r.UNTIL) { const u = icsTime(r.UNTIL, ''); if (u && ms > u.ms) return null; }
+  const shifted = new Date(Date.parse(`${start.local}:00Z`) + k * interval);
+  const local = shifted.toISOString().slice(0, 16);
+  return { local, allDay: start.allDay, ms };
+}
+
+async function calendarEvents(env) {
+  if (!env.CALENDAR_ICS_URL) return null;
+  if (icsCache.events && Date.now() - icsCache.at < 5 * 60_000) return icsCache.events;
+  const res = await fetch(env.CALENDAR_ICS_URL);
+  if (!res.ok) throw new HttpError(502, 'Non riesco a leggere Google Calendar. Controlla l’indirizzo iCal nel Worker.');
+  const text = (await res.text()).replace(/\r?\n[ \t]/g, '');
+  const now = Date.now() - 3 * 3600_000; // teniamo anche le sessioni iniziate da poco
+  const horizon = Date.now() + 60 * 86_400_000;
+  const events = [];
+  for (const block of text.split('BEGIN:VEVENT').slice(1)) {
+    const body = block.split('END:VEVENT')[0];
+    const get = (name) => {
+      const m = new RegExp(`^${name}([;:][^\\r\\n]*)$`, 'm').exec(body);
+      if (!m) return null;
+      const line = m[1];
+      const i = line.indexOf(':');
+      return { params: line.slice(0, i), value: line.slice(i + 1) };
+    };
+    if ((get('STATUS')?.value || '').toUpperCase() === 'CANCELLED') continue;
+    const ds = get('DTSTART');
+    if (!ds) continue;
+    let start = icsTime(ds.value.trim(), ds.params);
+    if (!start) continue;
+    const rr = get('RRULE');
+    if (rr) start = nextOccurrence(start, rr.value.trim(), now);
+    if (!start || start.ms < now || start.ms > horizon) continue;
+    const title = unescapeIcs(get('SUMMARY')?.value || '');
+    if (!title) continue;
+    events.push({ at: start.local, allDay: start.allDay, ms: start.ms, title });
+  }
+  events.sort((a, b) => a.ms - b.ms);
+  icsCache = { at: Date.now(), events };
+  return events;
+}
+
+function sessionType(title) {
+  const t = title.toLowerCase();
+  const hit = SESSION_WORDS.find(([w]) => new RegExp(`\\b${w}\\b`).test(t));
+  return hit ? hit[1] : '';
+}
+
+const matchesArtist = (title, name) => name && new RegExp(`(^|[^\\p{L}\\p{N}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'iu').test(title);
+
+/** Prossima sessione di un artista: solo gli eventi con il suo nome nel titolo. */
+async function calendarNext(req, env) {
+  const user = await verifyUser(req, env);
+  const { artistId } = await req.json();
+  if (!safeId(artistId)) throw new HttpError(400, 'Richiesta non valida.');
+  const artist = await readDocAsUser(env, user, `artists/${artistId}`);
+  if (!artist) throw new HttpError(403, 'Non hai accesso a questo artista.');
+  const events = await calendarEvents(env);
+  if (!events) return { configured: false, session: null };
+  const ev = events.find((e) => matchesArtist(e.title, artist.stageName));
+  return { configured: true, session: ev ? { at: ev.at, type: sessionType(ev.title), allDay: ev.allDay } : null };
+}
+
+/** Per la vista "Oggi": le prossime sessioni del calendario (solo studio). */
+async function calendarUpcoming(req, env) {
+  await requireAdmin(req, env);
+  const events = await calendarEvents(env);
+  if (!events) return { configured: false, events: [] };
+  return { configured: true, events: events.slice(0, 50).map((e) => ({ at: e.at, title: e.title, allDay: e.allDay, type: sessionType(e.title) })) };
+}
+
 // ───────────── cartelle dell'artista (stesse per admin e artista) ─────────────
 
 const FOLDER = 'application/vnd.google-apps.folder';
@@ -503,6 +615,8 @@ export default {
       if (req.method === 'POST' && pathname === '/admin/upload') return json(await startUpload(req, env), 200, req, env);
       if (req.method === 'PUT' && pathname === '/admin/upload-proxy') return json(await proxyUpload(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/artist-folder') return json(await adminArtistFolder(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/calendar/next') return json(await calendarNext(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/admin/calendar') return json(await calendarUpcoming(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/update-user') return json(await updateUser(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/create-user') return json(await createUser(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/demo-trash') return json(await trashDemo(req, env), 200, req, env);

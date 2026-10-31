@@ -123,6 +123,13 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href }: Props)
           <h1 className="display" style={{ fontSize: 'clamp(36px, 11vw, 52px)', overflowWrap: 'anywhere' }}>{track.title}</h1>
         </div>
         <TrackProgress progress={progress} />
+        {(track.links.spotify || track.links.apple || track.links.youtube) && (
+          <div className="row-actions">
+            {track.links.spotify && <a className="btn btn-primary btn-sm" href={track.links.spotify} target="_blank" rel="noreferrer">Ascolta su Spotify</a>}
+            {track.links.apple && <a className="btn btn-sm" href={track.links.apple} target="_blank" rel="noreferrer">Apple Music</a>}
+            {track.links.youtube && <a className="btn btn-sm" href={track.links.youtube} target="_blank" rel="noreferrer">YouTube</a>}
+          </div>
+        )}
         {(project || quote) && (
           <div className="row-actions">
             {project && <CoverDownload artistId={artistId} project={project} small />}

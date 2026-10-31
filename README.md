@@ -1,7 +1,7 @@
 # Emotion Studio · area artisti
 
 Web app privata di Emotion Studio: ogni artista trova brani, progressi, sessioni e pagamenti.
-Fasi completate: **A** (accesso, ruoli, profili artista, impostazioni studio, design "Notturno") **B** (progetti, brani, versioni MP3 su Google Drive, player con forma d'onda) **C** (note sulla forma d'onda, confronto A/B, loop, mini player, percorso del brano) **D** (demo degli artisti, anche registrate dal telefono) **E** (preventivi e pagamenti, sessioni, task, vista "Oggi") e **F** (preventivi a clic, copertine scaricabili, app installabile, sottodominio, rifiniture).
+Fasi completate: **A** (accesso, ruoli, profili artista, impostazioni studio, design "Notturno") **B** (progetti, brani, versioni MP3 su Google Drive, player con forma d'onda) **C** (note sulla forma d'onda, confronto A/B, loop, mini player, percorso del brano) **D** (demo degli artisti, anche registrate dal telefono) **E** (preventivi e pagamenti, sessioni, task, vista "Oggi") **F** (preventivi a clic, copertine scaricabili, app installabile, sottodominio, rifiniture) e **G1** (Google Calendar, inquadratura foto, social, traguardi).
 
 Questa guida è scritta per chi non è sviluppatore. Basta seguire i passaggi in ordine.
 
@@ -299,9 +299,39 @@ Gli artisti creati prima con un'email inventata: apri il profilo → **Passa a n
 4. Firebase → Authentication → Impostazioni → **Azioni utente** → togli la spunta a **Abilita creazione (registrazione)** → Salva.
 5. Cancella il file JSON dal computer: è una chiave riservata (resta solo dentro Cloudflare).
 
+---
+
+## Fase G1 · Google Calendar, inquadratura foto, social, traguardi
+
+**Aggiorna il Worker** (Cloudflare → `emotion-api` → Modifica codice → incolla `worker/worker.js` → Deploy).
+
+**Google Calendar dello studio**
+1. Su computer apri calendar.google.com con l'account dello studio → ingranaggio → **Impostazioni**.
+2. A sinistra, in "Impostazioni dei miei calendari", clicca il calendario dove fissi le sessioni.
+3. Scorri fino a **Integra il calendario** → copia **Indirizzo segreto in formato iCal** (finisce con `basic.ics`).
+4. Cloudflare → `emotion-api` → Impostazioni → Variabili e segreti → Aggiungi → *Segreto* `CALENDAR_ICS_URL` → incolla → Deploy.
+5. Regola: nel **titolo** dell'evento scrivi il nome d'arte dell'artista, es. "Jayden – Registrazione".
+   L'app riconosce il nome e il tipo (Registrazione, Mix, Mastering, Produzione, Consulenza).
+
+Risultato: in **Oggi** le sessioni dei prossimi 7 giorni arrivano dal calendario; nella **home dell'artista** la
+"Prossima sessione" si compila da sola. Ogni artista vede solo i propri eventi; gli eventi senza nome di un artista vengono ignorati.
+Le modifiche al calendario compaiono nell'app entro pochi minuti. L'indirizzo iCal è riservato: se lo condividi per errore,
+in Google Calendar puoi "Reimpostare" l'indirizzo e aggiornare il segreto.
+
+**Inquadratura foto** – Nel profilo artista, dopo aver caricato la foto, **tocca il viso**: l'app lo tiene inquadrato
+nell'header, nei riquadri e nell'avatar rotondo (con anteprime). Lo zoom avvicina.
+
+**Social** – I link inseriti nel profilo (Instagram, Spotify, TikTok, YouTube) compaiono come pulsanti nella home dell'artista.
+
+**Traguardi** – Si sbloccano da soli: primo brano, prima demo, primo master, 10/50/100 ore in studio, un anno con lo studio,
+brano sugli store (quando spunti tutti gli step del percorso), EP/album completato. Per i traguardi nuovi l'artista vede una
+festa a schermo intero con coriandoli; nel Profilo c'è la bacheca "I miei traguardi".
+Nel pannello Musica, sotto il percorso del brano, puoi incollare i **link a Spotify / Apple Music / YouTube**:
+compaiono nella festa e nella pagina del brano.
+
 ## Cosa arriva nelle prossime fasi
 
-- **G** – notifiche push ed email, invito sessione nel calendario, feat tra artisti, foto con punto focale, icone social, traguardi e badge
+- **G2** – notifiche push ed email, invito della sessione nel calendario dell'artista, feat tra artisti
 
 ---
 

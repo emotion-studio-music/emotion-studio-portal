@@ -2,6 +2,15 @@ import { DEFAULT_STEPS } from './steps';
 
 export const DEFAULT_SERVICES = ['Registrazione', 'Produzione', 'Arrangiamento', 'Beat', 'Mix', 'Master', 'Consulenza'];
 
+export interface PhotoFocus { x: number; y: number; zoom: number }
+export const defaultFocus: PhotoFocus = { x: 50, y: 30, zoom: 1 };
+
+/** Stile per le foto: tiene inquadrato il punto scelto, in qualsiasi formato (verticale, quadrato, cerchio). */
+export function focusStyle(f: PhotoFocus | undefined) {
+  const v = f ?? defaultFocus;
+  return { objectPosition: `${v.x}% ${v.y}%`, transform: v.zoom > 1 ? `scale(${v.zoom})` : undefined, transformOrigin: `${v.x}% ${v.y}%` };
+}
+
 export interface ArtistLinks {
   instagram?: string;
   spotify?: string;
@@ -22,7 +31,8 @@ export interface Artist {
   stageName: string;
   realName: string;
   bio: string;
-  photo: string | null; // immagine compressa (data URL) – in Fase B passa su Drive
+  photo: string | null; // immagine compressa (data URL)
+  photoFocus: PhotoFocus; // punto da tenere inquadrato (il viso) e zoom
   genres: string[];
   phone: string;
   links: ArtistLinks;
@@ -31,6 +41,7 @@ export interface Artist {
   memberEmails: string[];
   active: boolean;
   driveFolderId: string | null;
+  createdMs: number;
 }
 
 export interface StudioSettings {

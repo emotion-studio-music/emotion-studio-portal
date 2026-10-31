@@ -5,11 +5,16 @@ import { PAYMENT_KIND, fmtDay, setTaskDone, todayKey, updatePayment, type Task }
 import { eur } from '../../lib/money';
 import { formatTime } from '../../lib/audio';
 import { isUpcoming, longDate, parseAt, timeOf } from '../../lib/dates';
+import { artistInTitle, useCalendarUpcoming } from '../../lib/calendar';
 
 export function Today() {
   const t = useToday();
   const { artists } = useArtists();
   const name = (id: string) => artists.find((a) => a.id === id)?.stageName ?? '';
+  const cal = useCalendarUpcoming(true);
+  const calSessions = cal.events
+    .map((e) => ({ e, a: artistInTitle(e.title, artists.filter((x) => x.active)), d: parseAt(e.at) }))
+    .filter((x) => x.a && x.d && x.d.getTime() - Date.now() < 7 * 86_400_000);
   const upcoming = artists
     .map((a) => ({ a, d: parseAt(a.nextSession.at) }))
     .filter((x) => x.a.active && x.d && isUpcoming(x.d) && x.d.getTime() - Date.now() < 7 * 86_400_000)
@@ -88,8 +93,13 @@ export function Today() {
         </Block>
       )}
 
-      <Block title="Sessioni nei prossimi 7 giorni">
-        {upcoming.length === 0 ? <span className="small muted">Nessuna sessione in programma.</span> : upcoming.map(({ a, d }) => (
+      <Block title="Sessioni nei prossimi 7 giorni" hint={cal.status}>
+        {cal.configured ? (calSessions.length === 0 ? <span className="small muted">Nessuna sessione in calendario.</span> : calSessions.map(({ e, a, d }) => (
+          <Link key={`${e.at}-${e.title}`} to={`/admin/artisti/${a!.id}`} className="today-row link">
+            <span><strong>{a!.stageName}</strong> · {e.title}</span>
+            <span className="small muted">{longDate(d!)}{e.allDay ? '' : ` · ${timeOf(d!)}`}</span>
+          </Link>
+        ))) : upcoming.length === 0 ? <span className="small muted">Nessuna sessione in programma.</span> : upcoming.map(({ a, d }) => (
           <Link key={a.id} to={`/admin/artisti/${a.id}`} className="today-row link">
             <span><strong>{a.stageName}</strong>{a.nextSession.type ? ` · ${a.nextSession.type}` : ''}</span>
             <span className="small muted">{longDate(d!)} · {timeOf(d!)}</span>

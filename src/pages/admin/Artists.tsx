@@ -1,3 +1,4 @@
+import { focusStyle } from '../../lib/types';
 import { Link } from 'react-router-dom';
 import { useArtists } from '../../lib/data';
 import { useAllDemos } from '../../lib/demos';
@@ -32,7 +33,7 @@ export function Artists() {
         <div className="artist-grid">
           {[...active, ...inactive].map((a) => (
             <Link key={a.id} to={`/admin/artisti/${a.id}`} className={`artist-tile${a.active ? '' : ' inactive'}`}>
-              {a.photo ? <img src={a.photo} alt="" /> : <span className="monogram" aria-hidden="true">{a.stageName.slice(0, 1)}</span>}
+              {a.photo ? <img src={a.photo} alt="" style={focusStyle(a.photoFocus)} /> : <span className="monogram" aria-hidden="true">{a.stageName.slice(0, 1)}</span>}
               <div className="meta">
                 <span className="name">{a.stageName}</span>
                 <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

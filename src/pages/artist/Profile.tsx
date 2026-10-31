@@ -1,8 +1,11 @@
+import { focusStyle } from '../../lib/types';
 import { useState } from 'react';
 import { useAuth } from '../../lib/auth';
 import { useArtist } from '../../lib/data';
 import { COOKIE_URL, PRIVACY_URL } from '../../lib/legal';
 import { usernameOf } from '../../lib/username';
+import { useBadges } from '../../lib/useBadges';
+import { BadgeGrid } from '../../components/Celebration';
 import { Loading } from '../../components/Loading';
 
 type InstallEvt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
@@ -58,6 +61,7 @@ function InstallGuide() {
 export function Profile() {
   const { artistId, user, logout } = useAuth();
   const { artist, loading } = useArtist(artistId);
+  const { badges } = useBadges(artistId, artist?.createdMs ?? Date.now(), null, false);
   if (loading) return <Loading />;
   if (!artist) return null;
   const links = Object.entries(artist.links).filter(([, v]) => v);
@@ -66,7 +70,7 @@ export function Profile() {
     <div className="artist-main">
       <div className="stack" style={{ paddingTop: 'calc(28px + env(safe-area-inset-top, 0px))' }}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          {artist.photo && <img src={artist.photo} alt="" style={{ width: 72, height: 72, borderRadius: 36, objectFit: 'cover', objectPosition: '50% 30%' }} />}
+          {artist.photo && <span style={{ width: 72, height: 72, borderRadius: 36, overflow: 'hidden', flexShrink: 0 }}><img src={artist.photo} alt="" style={{ width: 72, height: 72, objectFit: 'cover', ...focusStyle(artist.photoFocus) }} /></span>}
           <div>
             <h1 className="display" style={{ fontSize: 38 }}>{artist.stageName}</h1>
             <span className="small muted">{artist.realName}</span>
@@ -92,6 +96,11 @@ export function Profile() {
           ))}
         </section>
         <p className="tiny muted" style={{ margin: '-18px 0 0' }}>Per modificare questi dati scrivi allo studio.</p>
+
+        <section className="section">
+          <h2 className="h2">I miei traguardi</h2>
+          <BadgeGrid badges={badges} />
+        </section>
 
         <InstallGuide />
         <p className="small muted" style={{ margin: 0 }}>Hai perso la password? Scrivi allo studio: te ne prepara una nuova.</p>

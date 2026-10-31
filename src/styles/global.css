@@ -521,3 +521,54 @@ a.card:hover, a.listen-card:hover { transform: translateY(-2px); }
 }
 .pay-method:active { transform: scale(.97); }
 .pay-method[aria-pressed='true'] { border-color: var(--accent); background: rgba(241,109,47,.12); color: var(--accent-soft); }
+
+/* Inquadratura foto */
+.hero, .artist-tile { overflow: hidden; }
+.focus-picker { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 640px) { .focus-picker { grid-template-columns: 1fr; } }
+.focus-source { position: relative; border-radius: var(--r-md); overflow: hidden; cursor: crosshair; touch-action: none; border: 1px solid var(--line); }
+.focus-source img { width: 100%; height: auto; display: block; user-select: none; }
+.focus-dot {
+  position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 13px;
+  border: 3px solid var(--amber); box-shadow: 0 0 0 2px rgba(0,0,0,.6), 0 0 16px rgba(255,181,71,.7); pointer-events: none;
+}
+.focus-previews { display: flex; flex-direction: column; gap: 10px; }
+.focus-prev { overflow: hidden; border: 1px solid var(--line); background: var(--bg); }
+.focus-prev img { width: 100%; height: 100%; object-fit: cover; }
+.focus-prev.tall { width: 100%; aspect-ratio: 3 / 4; border-radius: var(--r-md); }
+.focus-prev.square { width: 84px; height: 84px; border-radius: 12px; }
+.focus-prev.round { width: 64px; height: 64px; border-radius: 32px; }
+input[type='range'] { accent-color: var(--accent); width: 100%; }
+
+/* Social */
+.social-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.social-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px;
+  background: rgba(10,10,11,.55); border: 1px solid rgba(255,255,255,.18); color: var(--text); font-size: 13px; font-weight: 600;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.social-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+/* Traguardi */
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.badge-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 8px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
+.badge-tile.locked { opacity: .45; }
+.badge-medal {
+  width: 52px; height: 52px; border-radius: 26px; display: flex; align-items: center; justify-content: center; font-size: 26px;
+  background: radial-gradient(circle at 30% 25%, rgba(255,181,71,.45), rgba(241,109,47,.18) 60%, transparent 70%); border: 1px solid rgba(255,181,71,.35);
+}
+.badge-tile.locked .badge-medal { background: var(--surface-2); border-color: var(--line); }
+.badge-medal.big { width: 96px; height: 96px; border-radius: 48px; font-size: 48px; box-shadow: 0 0 60px rgba(241,109,47,.45); }
+.celebration {
+  position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: rgba(10,10,11,.86); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); animation: page-in .3s var(--ease);
+}
+.celebration-card {
+  position: relative; z-index: 1; width: min(420px, 100%); display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 28px 22px; border-radius: 28px; background: var(--surface); border: 1px solid rgba(255,181,71,.4); box-shadow: 0 0 80px -10px rgba(241,109,47,.5);
+  animation: pop-in .5s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+@keyframes pop-in { from { transform: scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.confetti span { position: absolute; top: -20px; border-radius: 2px; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: .9; } }

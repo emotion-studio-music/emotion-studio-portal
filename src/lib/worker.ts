@@ -43,6 +43,20 @@ export function updateUserOnServer(uid: string, data: { email?: string; password
   return call<{ ok: boolean }>('/admin/update-user', { uid, ...data });
 }
 
+export interface CalendarSession { at: string; type: string; allDay: boolean }
+export interface CalendarEvent extends CalendarSession { title: string }
+
+/** Prossima sessione dell'artista presa dal Google Calendar dello studio (null se non configurato). */
+export async function calendarNext(artistId: string) {
+  if (!BASE) return { configured: false, session: null as CalendarSession | null };
+  return call<{ configured: boolean; session: CalendarSession | null }>('/calendar/next', { artistId });
+}
+
+export async function calendarUpcoming() {
+  if (!BASE) return { configured: false, events: [] as CalendarEvent[] };
+  return call<{ configured: boolean; events: CalendarEvent[] }>('/admin/calendar', {});
+}
+
 /** Cartella Drive dell'artista (la trova o la crea il Worker, così admin e artista usano la stessa). */
 export function resolveArtistFolder(artistId: string) {
   return call<{ artistFolderId: string; rootId: string | null }>('/admin/artist-folder', { artistId });

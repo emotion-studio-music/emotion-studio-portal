@@ -38,6 +38,7 @@ export interface Track {
   awaitingReview: boolean;
   currentVersionId: string | null;
   checklist: Record<string, boolean>;
+  links: { spotify?: string; apple?: string; youtube?: string }; // link agli store quando è pubblicato
   updatedMs: number;
 }
 
@@ -67,7 +68,7 @@ const toProject = (id: string, d: DocumentData): Project => ({
 const toTrack = (id: string, d: DocumentData): Track => ({
   id, projectId: d.projectId, title: d.title ?? '', stage: d.stage ?? 0, steps: Array.isArray(d.steps) ? d.steps : null, order: d.order ?? 0,
   awaitingReview: d.awaitingReview ?? false, currentVersionId: d.currentVersionId ?? null,
-  checklist: d.checklist ?? {}, updatedMs: ms(d.updatedAt),
+  checklist: d.checklist ?? {}, links: d.links ?? {}, updatedMs: ms(d.updatedAt),
 });
 const toVersion = (id: string, d: DocumentData): Version => ({
   id, trackId: d.trackId, projectId: d.projectId, label: d.label ?? '', mp3FileId: d.mp3FileId ?? '',
