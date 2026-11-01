@@ -408,6 +408,26 @@ Limiti noti, accettati:
 - Un artista potrebbe caricare molte demo (100 MB ciascuna): tieni d'occhio lo spazio Drive nel pannello Musica.
 - Le regole di sicurezza sono state riviste sul codice; un test automatico con l'emulatore Firebase si può fare con Claude Code.
 
+### Regole di sicurezza: correzioni e test automatici
+
+Corretto nelle regole (si pubblicano con `npm run deploy`):
+- **Impostazioni dello studio** (IBAN, PayPal): le leggono solo lo studio e gli artisti attivi, non più qualsiasi account.
+- **Artista disattivato**: non vede più i brani in feat né le impostazioni, anche se è rimasto nell'elenco del feat.
+- **Note, demo, task, "Ho pagato"**: l'app accetta solo testi della lunghezza giusta e la data del momento
+  (prima si poteva scrivere una data nel futuro e far arrivare notifiche ogni 5 minuti).
+
+Dopo il deploy ogni artista deve solo riaprire l'app una volta: l'app salva in automatico a quale artista appartiene.
+Chi ha l'app già aperta in quel momento potrebbe non vedere l'IBAN finché non la ricarica.
+
+Ancora da fare: un artista esperto, con gli strumenti per sviluppatori, può ancora vedere se una sua demo è "Scartata" e le stelle.
+
+**Test delle regole** (servono Java e firebase-tools), dalla cartella del progetto:
+```
+cd tests/firestore-rules && npm install && cd ../..
+npx firebase emulators:exec --only firestore --project demo-emotion "cd tests/firestore-rules && npx vitest run"
+```
+Deve finire con tutti i test passati ("1 expected fail" è il punto ancora da fare).
+
 ## Cosa arriva nelle prossime fasi
 
 - Idee future: riepilogo email per lo studio, promemoria sessione il giorno prima

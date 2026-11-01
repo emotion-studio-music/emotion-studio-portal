@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query, setDoc, where } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
 export type Role = 'admin' | 'artist' | 'none';
@@ -32,7 +32,12 @@ async function resolveRole(user: User): Promise<{ role: Role; artistId: string |
   );
   const res = await getDocs(q);
   if (res.empty) return { role: 'none', artistId: null, privacyAccepted };
-  return { role: 'artist', artistId: res.docs[0].id, privacyAccepted };
+  const artistId = res.docs[0].id;
+  // Le regole di sicurezza leggono qui a quale artista appartiene l'utente (impostazioni, feat).
+  if (userSnap.data()?.artistId !== artistId) {
+    await setDoc(doc(db, 'users', user.uid), { artistId }, { merge: true }).catch(() => undefined);
+  }
+  return { role: 'artist', artistId, privacyAccepted };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

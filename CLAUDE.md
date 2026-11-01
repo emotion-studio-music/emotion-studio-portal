@@ -7,7 +7,10 @@ Il proprietario non è uno sviluppatore: `README.md` è la sua guida passo-passo
 ## Comandi
 
 - `npm install` · `npm run dev` (http://localhost:5173)
-- `npm run build` → `tsc -b && vite build` (è anche l'unico controllo automatico: **non ci sono test né linter**)
+- `npm run build` → `tsc -b && vite build` (controllo dei tipi; non c'è linter)
+- Test delle regole Firestore (emulatore, serve Java), **dalla radice** (l'emulatore rifiuta regole fuori dalla cartella del progetto):
+  `npx firebase emulators:exec --only firestore --project demo-emotion "cd tests/firestore-rules && npx vitest run"`.
+  Ogni modifica a `firestore.rules` va verificata così; aggiungere i test in `tests/firestore-rules/rules.test.js`.
 - `npm run deploy` → build + `firebase deploy` (pubblica insieme **hosting, `firestore.rules` e `firestore.indexes.json`**). Progetto Firebase: `emotion-studio`.
 - Il **Worker non ha wrangler**: si aggiorna copiando a mano `worker/worker.js` nell'editor di Cloudflare (`emotion-api`) → Deploy.
   Se modifichi il Worker, dillo esplicitamente all'utente.
@@ -34,7 +37,8 @@ React 18 + Vite 6 + TypeScript strict (`noUnusedLocals/Parameters`), react-route
 - `settings/studio` (IBAN, PayPal, testi, `stepTemplate`, `services`, `priceStep`), `settings/drive`, `system/notify` (`lastRun` del cron).
 - `artists/{id}`: profilo, `memberUids[]` (account che lo rappresentano, pronto per i duo), `memberEmails`, `active`, `driveFolderId`, foto come data URL WebP.
   Sottoraccolte: `private/admin` (note solo admin), `projects`, `tracks`, `versions`, `comments`, `demos`, `quotes`, `payments`, `tasks`, `sessions`.
-- Artista = uid in `memberUids` di un artista con `active == true`.
+- Artista = uid in `memberUids` di un artista con `active == true`. `users/{uid}.artistId` (scritto da `auth.tsx` al login) dice alle regole a quale artista appartiene l'utente: `isActiveArtistUser()` lo verifica e serve per `settings/*` e per i feat.
+- Date di creazione/segnalazione scritte dall'artista (`createdAt`, `reportedAt`, `doneAt`, `resolvedAt`) devono essere `serverTimestamp()`: le regole accettano solo `request.time`.
 - **Feat**: il brano vive solo sotto l'artista principale; `collaboratorUids` è **denormalizzato** su track, sue versions, suoi comments e sul project. Va sempre aggiornato con `setCollaborators` (anche quando un artista viene disattivato).
 - Note sulle demo: `comments` con `trackId = "demo:<demoId>"`.
 - Importi in **centesimi** (`amountCents`, `parseEuro`/`eur`); date "giorno" come stringhe `YYYY-MM-DD`; sessioni `YYYY-MM-DDTHH:mm` ora di Roma.

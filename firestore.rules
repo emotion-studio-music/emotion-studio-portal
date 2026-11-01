@@ -17,6 +17,41 @@ service cloud.firestore {
     function onlyChanges(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
+    // L'app salva in users/{uid}.artistId l'artista dell'utente: qui si verifica che sia vero e attivo.
+    function isActiveArtistUser() {
+      let u = get(/databases/$(db)/documents/users/$(request.auth.uid)).data;
+      return signedIn() && u.get('artistId', '') is string && u.get('artistId', '').size() > 0
+        && isMember(u.get('artistId', ''));
+    }
+    function okText(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    // Note: chi la segna risolta è chi fa la richiesta, con l'orario del server.
+    function okResolve() {
+      let r = request.resource.data;
+      return onlyChanges(['resolved', 'resolvedBy', 'resolvedAt']) && r.resolved is bool
+        && ((r.resolved == true && r.resolvedBy == request.auth.uid && r.resolvedAt == request.time)
+            || (r.resolved == false && r.get('resolvedBy', null) == null && r.get('resolvedAt', null) == null));
+    }
+    function okEdit() {
+      return resource.data.authorUid == request.auth.uid && onlyChanges(['text', 'editedAt'])
+        && okText(request.resource.data.text, 2000)
+        && request.resource.data.get('editedAt', request.time) == request.time;
+    }
+    // Campi di una nuova nota scritta da un artista (gli altri vengono rifiutati).
+    function okNewNote() {
+      let r = request.resource.data;
+      return r.keys().hasOnly(['trackId', 'versionId', 'authorUid', 'authorRole', 'authorName', 'text',
+               'atSeconds', 'resolved', 'collaboratorUids', 'createdAt'])
+        && r.authorUid == request.auth.uid
+        && r.authorRole == 'artist'
+        && r.resolved == false
+        && r.trackId is string && r.trackId.size() <= 200
+        && r.get('versionId', '') is string && r.get('versionId', '').size() <= 200
+        && r.get('authorName', '') is string && r.get('authorName', '').size() <= 80
+        && (r.get('atSeconds', null) == null || r.atSeconds is number)
+        && r.get('collaboratorUids', []) is list
+        && r.createdAt == request.time
+        && okText(r.text, 2000);
+    }
 
     // Elenco admin: ognuno può solo verificare se stesso.
     match /admins/{uid} {
@@ -32,12 +67,19 @@ service cloud.firestore {
 
     // Dispositivi iscritti alle notifiche: ognuno gestisce solo i propri.
     match /users/{uid}/push/{id} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['endpoint', 'p256dh', 'auth', 'device', 'createdAt'])
+        && request.resource.data.endpoint is string && request.resource.data.endpoint.matches('https://.+')
+        && request.resource.data.endpoint.size() <= 1000
+        && request.resource.data.p256dh is string && request.resource.data.p256dh.size() <= 200
+        && request.resource.data.auth is string && request.resource.data.auth.size() <= 200
+        && request.resource.data.get('device', '') is string && request.resource.data.get('device', '').size() <= 200;
     }
 
-    // Impostazioni dello studio (istruzioni di pagamento, testi).
+    // Impostazioni dello studio (istruzioni di pagamento, testi): solo studio e artisti attivi.
     match /settings/{doc} {
-      allow read: if signedIn();
+      allow read: if isAdmin() || isActiveArtistUser();
       allow write: if isAdmin();
     }
 
@@ -60,9 +102,10 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
 
-      // Feat: chi è in collaborazione su un brano legge il brano, le sue versioni, le note e il progetto.
+      // Feat: chi è in collaborazione su un brano legge il brano, le sue versioni, le note e il progetto
+      // (solo finché il suo artista è attivo).
       function isCollab() {
-        return signedIn() && request.auth.uid in resource.data.get('collaboratorUids', []);
+        return signedIn() && request.auth.uid in resource.data.get('collaboratorUids', []) && isActiveArtistUser();
       }
       match /tracks/{id}   { allow read: if isCollab(); }
       match /versions/{id} { allow read: if isCollab(); }
@@ -73,50 +116,43 @@ service cloud.firestore {
       match /comments/{id} {
         allow read: if isCollab();
         // chi è in feat può scrivere note sul brano condiviso (copiando l'elenco dei collaboratori del brano)
-        allow create: if signedIn()
-          && request.resource.data.trackId is string && !request.resource.data.trackId.matches('.*/.*')
+        allow create: if okNewNote() && isActiveArtistUser()
+          && !request.resource.data.trackId.matches('.*/.*')
           && request.auth.uid in get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.get('collaboratorUids', [])
-          && request.resource.data.collaboratorUids == get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.collaboratorUids
-          && request.resource.data.authorUid == request.auth.uid
-          && request.resource.data.authorRole == 'artist'
-          && request.resource.data.resolved == false
-          && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 2000;
-        allow update: if isCollab() && (
-          (resource.data.authorUid == request.auth.uid && onlyChanges(['text', 'editedAt']))
-          || onlyChanges(['resolved', 'resolvedBy', 'resolvedAt'])
-        );
+          && request.resource.data.collaboratorUids == get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.collaboratorUids;
+        allow update: if isCollab() && (okEdit() || okResolve());
         allow delete: if isCollab() && resource.data.authorUid == request.auth.uid;
-        allow create: if isMember(a)
-          && request.resource.data.authorUid == request.auth.uid
-          && request.resource.data.authorRole == 'artist'
-          && (request.resource.data.atSeconds == null || request.resource.data.atSeconds is number)
+        allow create: if isMember(a) && okNewNote()
           // l'elenco dei collaboratori sulla nota non si può inventare: vuoto, oppure identico a quello del brano
           && (request.resource.data.get('collaboratorUids', []).size() == 0
-              || (request.resource.data.trackId is string && !request.resource.data.trackId.matches('.*/.*')
-                  && request.resource.data.collaboratorUids == get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.get('collaboratorUids', [])))
-          && request.resource.data.resolved == false
-          && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 2000;
-        allow update: if isMember(a) && (
-          (resource.data.authorUid == request.auth.uid && onlyChanges(['text', 'editedAt']))
-          || onlyChanges(['resolved', 'resolvedBy', 'resolvedAt'])
-        );
+              || (!request.resource.data.trackId.matches('.*/.*')
+                  && request.resource.data.collaboratorUids == get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.get('collaboratorUids', [])));
+        allow update: if isMember(a) && (okEdit() || okResolve());
         allow delete: if isMember(a) && resource.data.authorUid == request.auth.uid;
       }
       match /demos/{id} {
         allow create: if isMember(a)
+          && request.resource.data.keys().hasOnly(['title', 'note', 'fileId', 'fileName', 'mimeType', 'size', 'peaks',
+               'duration', 'source', 'uploadedBy', 'status', 'rating', 'seenByAdmin', 'createdAt'])
           && request.resource.data.uploadedBy == request.auth.uid
           && request.resource.data.seenByAdmin == false
           && request.resource.data.status == 'nuova'
           && request.resource.data.rating == 0
-          && request.resource.data.title is string && request.resource.data.title.size() <= 120
-          && request.resource.data.keys().hasOnly(['title', 'note', 'fileId', 'fileName', 'mimeType', 'size', 'peaks',
-               'duration', 'source', 'uploadedBy', 'status', 'rating', 'seenByAdmin', 'createdAt']);
-        // l'artista può correggere titolo e nota, o ritirare la demo finché lo studio non l'ha ascoltata
-        allow update: if isMember(a) && resource.data.uploadedBy == request.auth.uid && onlyChanges(['title', 'note']);
+          && okText(request.resource.data.title, 120)
+          && request.resource.data.get('note', '') is string && request.resource.data.get('note', '').size() <= 2000
+          && request.resource.data.fileId is string && request.resource.data.fileId.matches('[A-Za-z0-9_-]{1,128}')
+          && request.resource.data.get('fileName', '') is string && request.resource.data.get('fileName', '').size() <= 200
+          && request.resource.data.get('mimeType', '') is string && request.resource.data.get('mimeType', '').size() <= 100
+          && request.resource.data.get('size', 0) is number
+          && request.resource.data.get('peaks', []) is list && request.resource.data.get('peaks', []).size() <= 2000
+          && request.resource.data.get('duration', 0) is number
+          && request.resource.data.source in ['file', 'registrazione']
+          && request.resource.data.createdAt == request.time;
+        // l'artista può correggere titolo e nota, o ritirare la demo, finché lo studio non l'ha ascoltata
+        allow update: if isMember(a) && resource.data.uploadedBy == request.auth.uid && resource.data.status == 'nuova'
+          && onlyChanges(['title', 'note'])
+          && okText(request.resource.data.title, 120)
+          && request.resource.data.get('note', '') is string && request.resource.data.get('note', '').size() <= 2000;
         allow delete: if isMember(a) && resource.data.uploadedBy == request.auth.uid && resource.data.status == 'nuova';
       }
       // l'artista segnala "Ho pagato": lo studio poi conferma
@@ -124,17 +160,21 @@ service cloud.firestore {
         allow update: if isMember(a) && resource.data.status == 'da_pagare'
           && request.resource.data.status == 'segnalato'
           && request.resource.data.reportedMethod is string && request.resource.data.reportedMethod.size() <= 40
+          && request.resource.data.reportedAt == request.time
           && onlyChanges(['status', 'reportedMethod', 'reportedAt']);
       }
       match /tasks/{id} {
         allow update: if isMember(a) && resource.data.assignee == 'artist'
-          && onlyChanges(['done', 'doneAt']);
+          && onlyChanges(['done', 'doneAt'])
+          && ((request.resource.data.done == true && request.resource.data.doneAt == request.time)
+              || (request.resource.data.done == false && request.resource.data.get('doneAt', null) == null));
       }
     }
 
     // Brani in feat: l'artista cerca tra tutti i brani quelli che lo includono.
     match /{path=**}/tracks/{id} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid in resource.data.get('collaboratorUids', []));
+      allow read: if isAdmin()
+        || (signedIn() && request.auth.uid in resource.data.get('collaboratorUids', []) && isActiveArtistUser());
     }
 
     // Vista admin "Da fare oggi" (query su tutti gli artisti).
