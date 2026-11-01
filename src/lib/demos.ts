@@ -118,7 +118,7 @@ export async function promoteDemo(demo: Demo, target: { projectId: string } | { 
   if ('projectId' in target) projectId = target.projectId;
   else projectId = (await createProject(demo.artistId, { title: target.newSingle, type: 'singolo', cover: null, releaseDate: '' })).id;
   const title = 'newSingle' in target ? target.newSingle : demo.title;
-  const track = await createTrack(demo.artistId, projectId, title, 99, template);
+  const track = await createTrack(demo.artistId, projectId, title, template);
   await addVersion(demo.artistId, {
     trackId: track.id, projectId, label: 'Demo', mp3FileId: demo.fileId, fileName: demo.fileName, size: demo.size,
     peaks: demo.peaks, duration: demo.duration, downloadEnabled: false, notes: demo.note,

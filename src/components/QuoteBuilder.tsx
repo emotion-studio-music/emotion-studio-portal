@@ -44,7 +44,7 @@ export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string;
     if (!newTrack?.trim()) return;
     try {
       const p = await createProject(artistId, { title: newTrack.trim(), type: 'singolo', cover: null, releaseDate: '' });
-      const t = await createTrack(artistId, p.id, newTrack.trim(), 0, settings.stepTemplate);
+      const t = await createTrack(artistId, p.id, newTrack.trim(), settings.stepTemplate);
       setTrackIds((l) => [...l, t.id]);
       setNewTrack(null);
     } catch (e) { setMsg({ ok: false, text: errorMessage(e) }); }

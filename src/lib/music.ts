@@ -26,6 +26,7 @@ export interface Project {
   coverFileId: string | null;   // copertina originale su Drive
   coverFileName: string;
   coverDownload: boolean;       // l'artista può scaricarla
+  order: number;                // posizione nell'elenco (dal più vecchio al più recente, spostabile a mano)
   createdMs: number;
 }
 
@@ -35,7 +36,7 @@ export interface Track {
   title: string;
   stage: number; // vecchia fase 0–6, usata solo per convertire i brani esistenti
   steps: Step[] | null; // percorso del brano (null = brano creato prima del percorso)
-  order: number;
+  order: number; // posizione nel progetto (in ordine di aggiunta, spostabile a mano)
   awaitingReview: boolean;
   currentVersionId: string | null;
   checklist: Record<string, boolean>;
@@ -46,6 +47,7 @@ export interface Track {
   ownerArtistId: string;       // id dell'artista principale (dove "vive" il brano)
   collaboratorNames: string[]; // nomi d'arte degli artisti in feat
   publishedAt: string;         // "AAAA-MM-GG": giorno in cui hai spuntato l'ultimo step ('' se non ancora)
+  createdMs: number;
   updatedMs: number;
 }
 
@@ -71,13 +73,15 @@ const ms = (t: unknown) => (t as Timestamp | undefined)?.toMillis?.() ?? Date.no
 const toProject = (id: string, d: DocumentData): Project => ({
   id, title: d.title ?? '', type: d.type ?? 'singolo', cover: d.cover ?? null, releaseDate: d.releaseDate ?? '',
   driveFolderId: d.driveFolderId ?? null, versionsFolderId: d.versionsFolderId ?? null,
-  coverFileId: d.coverFileId ?? null, coverFileName: d.coverFileName ?? '', coverDownload: d.coverDownload ?? false, createdMs: ms(d.createdAt),
+  coverFileId: d.coverFileId ?? null, coverFileName: d.coverFileName ?? '', coverDownload: d.coverDownload ?? false,
+  order: typeof d.order === 'number' ? d.order : ms(d.createdAt), createdMs: ms(d.createdAt),
 });
 const toTrack = (id: string, d: DocumentData, owner = ''): Track => ({
-  id, projectId: d.projectId, title: d.title ?? '', stage: d.stage ?? 0, steps: Array.isArray(d.steps) ? d.steps : null, order: d.order ?? 0,
+  id, projectId: d.projectId, title: d.title ?? '', stage: d.stage ?? 0, steps: Array.isArray(d.steps) ? d.steps : null,
+  order: typeof d.order === 'number' ? d.order : ms(d.createdAt),
   awaitingReview: d.awaitingReview ?? false, currentVersionId: d.currentVersionId ?? null,
   checklist: d.checklist ?? {}, links: safeLinks(d.links), collaboratorIds: d.collaboratorIds ?? [], collaboratorUids: d.collaboratorUids ?? [],
-  ownerName: d.ownerName ?? '', ownerArtistId: owner, collaboratorNames: d.collaboratorNames ?? [], publishedAt: d.publishedAt ?? '', updatedMs: ms(d.updatedAt),
+  ownerName: d.ownerName ?? '', ownerArtistId: owner, collaboratorNames: d.collaboratorNames ?? [], publishedAt: d.publishedAt ?? '', createdMs: ms(d.createdAt), updatedMs: ms(d.updatedAt),
 });
 const toVersion = (id: string, d: DocumentData): Version => ({
   id, trackId: d.trackId, projectId: d.projectId, label: d.label ?? '', mp3FileId: d.mp3FileId ?? '',
@@ -99,14 +103,20 @@ function useCollection<T>(path: string | null, map: (id: string, d: DocumentData
   return { items, loading };
 }
 
+/**
+ * Ordine di progetti e brani: dal primo creato all'ultimo. `order` vale la data di creazione finché
+ * lo studio non sposta qualcosa con le frecce: allora diventa 0, 1, 2… (sempre prima dei nuovi).
+ */
+export const byOrder = <T extends { order: number; createdMs: number }>(a: T, b: T) => a.order - b.order || a.createdMs - b.createdMs;
+
 export function useProjects(artistId: string | null) {
   const r = useCollection(artistId ? `artists/${artistId}/projects` : null, toProject);
-  return { projects: [...r.items].sort((a, b) => b.createdMs - a.createdMs), loading: r.loading };
+  return { projects: [...r.items].sort(byOrder), loading: r.loading };
 }
 
 export function useTracks(artistId: string | null) {
   const r = useCollection(artistId ? `artists/${artistId}/tracks` : null, (id, d) => toTrack(id, d, artistId ?? ''));
-  return { tracks: [...r.items].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title)), loading: r.loading };
+  return { tracks: [...r.items].sort(byOrder), loading: r.loading };
 }
 
 export function useVersions(artistId: string | null, trackId: string | null, asCollaborator?: string) {
@@ -154,7 +164,8 @@ export function useSharedTracks(uid: string | null) {
   useEffect(() => {
     if (!uid) return;
     return onSnapshot(query(collectionGroup(db, 'tracks'), where('collaboratorUids', 'array-contains', uid)),
-      (s) => setTracks(s.docs.map((d) => toTrack(d.id, d.data(), d.ref.parent.parent?.id ?? ''))), () => setTracks([]));
+      (s) => setTracks(s.docs.map((d) => toTrack(d.id, d.data(), d.ref.parent.parent?.id ?? ''))
+        .sort((a, b) => a.createdMs - b.createdMs)), () => setTracks([]));
   }, [uid]);
   return tracks;
 }
@@ -164,7 +175,7 @@ export function useSharedTracks(uid: string | null) {
 export function createProject(artistId: string, data: Pick<Project, 'title' | 'type' | 'cover' | 'releaseDate'> & { coverDownload?: boolean }) {
   return addDoc(collection(db, 'artists', artistId, 'projects'), {
     coverFileId: null, coverFileName: '', coverDownload: false,
-    ...data, driveFolderId: null, versionsFolderId: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    ...data, driveFolderId: null, versionsFolderId: null, order: Date.now(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
   });
 }
 
@@ -183,15 +194,33 @@ export function trackSteps(t: Track, template: string[]): Step[] {
   return t.steps ?? stepsFromLegacyStage(t.stage, template);
 }
 
-export function createTrack(artistId: string, projectId: string, title: string, order: number, template: string[]) {
+/** Il nuovo brano va in fondo al suo progetto. */
+export function createTrack(artistId: string, projectId: string, title: string, template: string[]) {
   return addDoc(collection(db, 'artists', artistId, 'tracks'), {
-    projectId, title, stage: 0, steps: stepsFromTemplate(template), order, awaitingReview: false, currentVersionId: null, checklist: {},
+    projectId, title, stage: 0, steps: stepsFromTemplate(template), order: Date.now(), awaitingReview: false, currentVersionId: null, checklist: {},
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
   });
 }
 
 export function updateTrack(artistId: string, id: string, data: Partial<Omit<Track, 'id' | 'updatedMs'>>) {
   return updateDoc(doc(db, 'artists', artistId, 'tracks', id), { ...data, updatedAt: serverTimestamp() });
+}
+
+/**
+ * Frecce ↑ ↓: sposta `id` di un posto rispetto ai vicini in `visible` (l'elenco che vede lo studio)
+ * e salva il nuovo ordine di tutto `all` come 0, 1, 2…
+ */
+export async function moveInOrder(artistId: string, col: 'projects' | 'tracks', all: { id: string }[], visible: { id: string }[], id: string, dir: -1 | 1) {
+  const i = visible.findIndex((x) => x.id === id);
+  const other = visible[i + dir];
+  if (i < 0 || !other) return;
+  const ids = all.map((x) => x.id);
+  const a = ids.indexOf(id);
+  const b = ids.indexOf(other.id);
+  [ids[a], ids[b]] = [ids[b], ids[a]];
+  const batch = writeBatch(db);
+  ids.forEach((x, n) => batch.update(doc(db, 'artists', artistId, col, x), { order: n }));
+  await batch.commit();
 }
 
 /** Elimina il brano e le sue versioni dall'app. I file restano su Drive. */

@@ -7,7 +7,7 @@ import { SPOTLIGHT_DAYS, dayKey, releaseInfo } from '../../lib/release';
 import { StepsEditor } from '../../components/StepsEditor';
 import { TrackProgress } from '../../components/TrackProgress';
 import {
-  PROJECT_TYPES, addVersion, createProject, createTrack, deleteProject, deleteTrack, deleteVersion,
+  PROJECT_TYPES, addVersion, createProject, createTrack, deleteProject, deleteTrack, deleteVersion, moveInOrder,
   setCollaborators, trackSteps, updateProject, updateTrack, updateVersion, useProjects, useTracks, useVersions,
   type Project, type ProjectType, type Track,
 } from '../../lib/music';
@@ -72,9 +72,10 @@ export function Music() {
         <div className="empty"><strong>Nessun progetto</strong>Crea un singolo o un EP, poi aggiungi i brani e carica le versioni.</div>
       )}
 
-      {active.map((p) => (
+      {active.map((p, i) => (
         <ProjectAdmin key={p.id} artist={artist} project={p} tracks={tracks.filter((t) => t.projectId === p.id)}
-          template={settings.stepTemplate} comments={comments} />
+          template={settings.stepTemplate} comments={comments}
+          first={i === 0} last={i === active.length - 1} onMove={(dir) => moveInOrder(artist.id, 'projects', projects, active, p.id, dir)} />
       ))}
 
       {archived.length > 0 && (
@@ -82,9 +83,10 @@ export function Music() {
           <button type="button" className="btn btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowArchived((v) => !v)} aria-expanded={showArchived}>
             {showArchived ? 'Nascondi' : 'Mostra'} usciti da più di 30 giorni ({archived.length})
           </button>
-          {showArchived && archived.map((p) => (
+          {showArchived && archived.map((p, i) => (
             <ProjectAdmin key={p.id} artist={artist} project={p} tracks={tracks.filter((t) => t.projectId === p.id)}
-              template={settings.stepTemplate} comments={comments} />
+              template={settings.stepTemplate} comments={comments}
+              first={i === 0} last={i === archived.length - 1} onMove={(dir) => moveInOrder(artist.id, 'projects', projects, archived, p.id, dir)} />
           ))}
         </section>
       )}
@@ -179,9 +181,12 @@ function ProjectFields(p: FieldsProps) {
   );
 }
 
-interface ProjectAdminProps { artist: Artist; project: Project; tracks: Track[]; template: string[]; comments: Comment[] }
+interface ProjectAdminProps {
+  artist: Artist; project: Project; tracks: Track[]; template: string[]; comments: Comment[];
+  first: boolean; last: boolean; onMove: (dir: -1 | 1) => Promise<void>;
+}
 
-function ProjectAdmin({ artist, project, tracks, template, comments }: ProjectAdminProps) {
+function ProjectAdmin({ artist, project, tracks, template, comments, first, last, onMove }: ProjectAdminProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(project.title);
   const [type, setType] = useState<ProjectType>(project.type);
@@ -208,10 +213,11 @@ function ProjectAdmin({ artist, project, tracks, template, comments }: ProjectAd
     if (!confirm(`Eliminare il progetto "${project.title}"?`)) return;
     try { await deleteProject(artist.id, project.id); } catch (err) { setError(errorMessage(err)); }
   };
+  const move = (p: Promise<void>) => { setError(null); p.catch((err) => setError(errorMessage(err))); };
   const addTrack = async (e: FormEvent) => {
     e.preventDefault();
     if (!newTrack.trim()) return;
-    try { await createTrack(artist.id, project.id, newTrack.trim(), tracks.length, template); setNewTrack(''); }
+    try { await createTrack(artist.id, project.id, newTrack.trim(), template); setNewTrack(''); }
     catch (err) { setError(errorMessage(err)); }
   };
 
@@ -238,14 +244,20 @@ function ProjectAdmin({ artist, project, tracks, template, comments }: ProjectAd
               <span className="h2">{project.title}</span>
             </div>
           </div>
-          <button className="btn btn-sm" onClick={() => setEditing(true)}>Modifica</button>
+          <div className="row-actions">
+            <button type="button" className="btn btn-ghost btn-sm" aria-label={`Sposta su il progetto ${project.title}`} disabled={first} onClick={() => move(onMove(-1))}>↑</button>
+            <button type="button" className="btn btn-ghost btn-sm" aria-label={`Sposta giù il progetto ${project.title}`} disabled={last} onClick={() => move(onMove(1))}>↓</button>
+            <button className="btn btn-sm" onClick={() => setEditing(true)}>Modifica</button>
+          </div>
         </div>
       )}
       {error && <div className="alert alert-error" style={{ margin: '0 16px 16px' }} role="alert">{error}</div>}
 
-      {tracks.map((t) => (
+      {tracks.map((t, i) => (
         <TrackAdmin key={t.id} artist={artist} project={project} track={t} template={template}
-          openNotes={comments.filter((c) => c.trackId === t.id && !c.resolved && c.authorRole === 'artist').length} />
+          openNotes={comments.filter((c) => c.trackId === t.id && !c.resolved && c.authorRole === 'artist').length}
+          first={i === 0} last={i === tracks.length - 1}
+          onMove={(dir) => move(moveInOrder(artist.id, 'tracks', tracks, tracks, t.id, dir))} />
       ))}
 
       <form className="track-row" onSubmit={addTrack} style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -256,7 +268,12 @@ function ProjectAdmin({ artist, project, tracks, template, comments }: ProjectAd
   );
 }
 
-function TrackAdmin({ artist, project, track, template, openNotes }: { artist: Artist; project: Project; track: Track; template: string[]; openNotes: number }) {
+interface TrackAdminProps {
+  artist: Artist; project: Project; track: Track; template: string[]; openNotes: number;
+  first: boolean; last: boolean; onMove: (dir: -1 | 1) => void;
+}
+
+function TrackAdmin({ artist, project, track, template, openNotes, first, last, onMove }: TrackAdminProps) {
   const [open, setOpen] = useState(false);
   const [featOpen, setFeatOpen] = useState(false);
   const { artists } = useArtists();
@@ -282,6 +299,8 @@ function TrackAdmin({ artist, project, track, template, openNotes }: { artist: A
           )}
         </span>
         <div className="row-actions">
+          <button type="button" className="btn btn-ghost btn-sm" aria-label={`Sposta su ${track.title}`} disabled={first} onClick={() => onMove(-1)}>↑</button>
+          <button type="button" className="btn btn-ghost btn-sm" aria-label={`Sposta giù ${track.title}`} disabled={last} onClick={() => onMove(1)}>↓</button>
           <label className="check" style={{ alignItems: 'center' }}>
             <input type="checkbox" checked={track.awaitingReview} onChange={(e) => void run(updateTrack(artist.id, track.id, { awaitingReview: e.target.checked }))} />
             <span className="small">Da ascoltare</span>
