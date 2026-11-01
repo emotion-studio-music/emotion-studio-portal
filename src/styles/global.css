@@ -582,3 +582,8 @@ input[type='range'] { accent-color: var(--accent); width: 100%; }
 .disco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .disco-item { overflow: hidden; display: flex; flex-direction: column; }
 .disco-img { width: 100% !important; height: auto !important; aspect-ratio: 1; border-radius: 0 !important; border: none !important; }
+
+/* Revisione mobile */
+.artist-app { overflow-x: hidden; }
+.track-hero::before { width: min(520px, 100vw); }
+@media (max-width: 860px) { .select, .input, .textarea { font-size: 16px; } }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPayment, createQuote, servicesTitle, todayKey } from '../lib/business';
 import { createProject, createTrack, type Track } from '../lib/music';
-import { eur } from '../lib/money';
+import { eur, parseEuro } from '../lib/money';
 import { errorMessage } from '../lib/errors';
 import type { StudioSettings } from '../lib/types';
 
@@ -19,7 +19,12 @@ export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string;
   const [services, setServices] = useState<string[]>([]);
   const [trackIds, setTrackIds] = useState<string[]>([]);
   const [pricing, setPricing] = useState<'brano' | 'totale'>('brano');
-  const [price, setPrice] = useState(step * 2);
+  const [price, setPriceNum] = useState(step * 2);
+  const [priceText, setPriceText] = useState(String(step * 2));
+  const setPrice = (v: number | ((p: number) => number)) => {
+    const next = typeof v === 'function' ? v(price) : v;
+    setPriceNum(next); setPriceText(String(next).replace('.', ','));
+  };
   const [pay, setPay] = useState<PayOpt>('niente');
   const [note, setNote] = useState('');
   const [showNote, setShowNote] = useState(false);
@@ -103,7 +108,11 @@ export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string;
         <div className="pick-wrap" style={{ marginTop: 8 }}>
           <button type="button" className="pick" onClick={() => setPrice((p) => Math.max(0, p - step))} aria-label={`Meno ${step} euro`}>− {step}</button>
           <input className="input" style={{ width: 110, minHeight: 44, textAlign: 'center' }} inputMode="decimal" aria-label="Importo"
-            value={String(price).replace('.', ',')} onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); if (isFinite(v) && v >= 0) setPrice(v); }} />
+            value={priceText} onChange={(e) => {
+              setPriceText(e.target.value);
+              const c = parseEuro(e.target.value);
+              if (c !== null) setPriceNum(c / 100);
+            }} />
           <button type="button" className="pick" onClick={() => setPrice((p) => p + step)} aria-label={`Più ${step} euro`}>+ {step}</button>
         </div>
       </div>

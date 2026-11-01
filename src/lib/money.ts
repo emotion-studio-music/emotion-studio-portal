@@ -8,6 +8,7 @@ export function parseEuro(input: string): number | null {
   let s = input.replace(/[€\s]/g, '');
   if (!s) return null;
   if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ''); // "1.250" all'italiana = 1250
   const n = Number(s);
   if (!isFinite(n) || n < 0) return null;
   return Math.round(n * 100);

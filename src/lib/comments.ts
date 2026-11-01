@@ -22,7 +22,7 @@ export function useOpenArtistNotes(enabled: boolean) {
   const [items, setItems] = useState<(Comment & { artistId: string })[]>([]);
   useEffect(() => {
     if (!enabled) return;
-    return onSnapshot(collectionGroup(db, 'comments'), (s) => setItems(s.docs
+    return onSnapshot(query(collectionGroup(db, 'comments'), where('resolved', '==', false)), (s) => setItems(s.docs
       .map((d) => {
         const x = d.data();
         return {

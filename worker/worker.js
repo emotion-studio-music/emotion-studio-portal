@@ -712,6 +712,8 @@ async function notifyRun(env) {
   }
   for (const t of await fsSince(env, 'tracks', 'updatedAt', since)) {
     if (!t.publishedAt || t.pushPublished) continue;
+    const recent = new Date(since - 2 * 86_400_000).toISOString().slice(0, 10);
+    if (t.publishedAt < recent) { await fsPatch(env, `artists/${t.artistId}/tracks/${t.id}`, { pushPublished: true }); continue; }
     for (const x of await artistTargets(t.artistId, t.id, (feat) => (feat ? `/feat/${t.artistId}/${t.id}` : `/brano/${t.id}`))) {
       add(t.updatedAt, [x.uid], { title: `🚀 “${t.title}” è uscito!`, body: 'Apri l’app: c’è una sorpresa per te.', url: x.url });
     }

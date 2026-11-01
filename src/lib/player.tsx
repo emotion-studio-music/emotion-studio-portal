@@ -154,7 +154,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const a = el('A');
       a.src = url;
       setMediaSession(track, version);
-      if (autoplay) await a.play();
+      // Su iPhone il browser può bloccare l'avvio automatico dopo il caricamento: resta in pausa, basta un tocco su play
+      if (autoplay) await a.play().catch(() => undefined);
     } catch (e) {
       setS((p) => ({ ...p, error: e instanceof Error ? e.message : 'Errore di riproduzione.' }));
     }

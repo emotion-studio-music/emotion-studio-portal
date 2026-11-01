@@ -389,6 +389,15 @@ Corretto in questo aggiornamento:
 - **Link salvati** (social, store, pagamento con carta): l'app accetta solo link `http/https`.
 - **Artista disattivato**: viene tolto automaticamente dai feat sui brani degli altri artisti.
 
+Revisione funzionale (stesso giorno), corretto:
+- **iPhone**: se il play parte dopo il caricamento e Safari lo blocca, il brano resta in pausa senza messaggi d'errore (basta un tocco).
+- **iPhone**: niente più zoom automatico toccando i menu a tendina; niente scorrimento orizzontale nella pagina del brano.
+- **Importi**: "1.250" ora vale 1.250 € (prima 1,25 €); nel preventivo a clic si possono scrivere anche i decimali con la virgola.
+- **Note orfane**: eliminando un brano o una versione si eliminano anche le sue note (prima restavano in "Oggi").
+- **Oggi**: legge solo le note non risolte, per consumare meno letture del piano gratuito.
+- **Notifica "è uscito"**: parte solo per i brani appena usciti, non per quelli vecchi modificati più tardi.
+- **Registrazione dal telefono**: l'indicatore del microfono ora si muove anche su iPhone.
+
 Da fare a mano (consigliato): Firebase → Authentication → Impostazioni → **Azioni utente** → togli
 **Abilita creazione (registrazione)**. Ora che il Worker crea gli account, nessuno può più registrarsi da solo
 (oggi un estraneo potrebbe creare un account e leggere le istruzioni di pagamento dello studio).

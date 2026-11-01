@@ -70,6 +70,7 @@ export function useRecorder() {
       const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const c = new Ctx();
       ctx.current = c;
+      void c.resume().catch(() => undefined);
       const an = c.createAnalyser();
       an.fftSize = 512;
       c.createMediaStreamSource(s).connect(an);

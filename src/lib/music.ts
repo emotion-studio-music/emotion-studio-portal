@@ -197,8 +197,10 @@ export function updateTrack(artistId: string, id: string, data: Partial<Omit<Tra
 /** Elimina il brano e le sue versioni dall'app. I file restano su Drive. */
 export async function deleteTrack(artistId: string, id: string) {
   const versions = await getDocs(query(collection(db, 'artists', artistId, 'versions'), where('trackId', '==', id)));
+  const notes = await getDocs(query(collection(db, 'artists', artistId, 'comments'), where('trackId', '==', id)));
   const batch = writeBatch(db);
   versions.forEach((v) => batch.delete(v.ref));
+  notes.forEach((n) => batch.delete(n.ref));
   batch.delete(doc(db, 'artists', artistId, 'tracks', id));
   await batch.commit();
 }
@@ -213,8 +215,13 @@ export function updateVersion(artistId: string, id: string, data: Partial<Pick<V
   return updateDoc(doc(db, 'artists', artistId, 'versions', id), data);
 }
 
-export function deleteVersion(artistId: string, id: string) {
-  return deleteDoc(doc(db, 'artists', artistId, 'versions', id));
+/** Toglie la versione dall'app insieme alle sue note (il file resta su Drive). */
+export async function deleteVersion(artistId: string, id: string) {
+  const notes = await getDocs(query(collection(db, 'artists', artistId, 'comments'), where('versionId', '==', id)));
+  const batch = writeBatch(db);
+  notes.forEach((n) => batch.delete(n.ref));
+  batch.delete(doc(db, 'artists', artistId, 'versions', id));
+  await batch.commit();
 }
 
 /**
