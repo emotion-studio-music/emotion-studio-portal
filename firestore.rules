@@ -183,5 +183,8 @@ service cloud.firestore {
     match /{path=**}/tasks/{id}    { allow read: if isAdmin(); }
     match /{path=**}/payments/{id} { allow read: if isAdmin(); }
     match /{path=**}/quotes/{id}   { allow read: if isAdmin(); }
+    // Pagina Artisti, ordina per "attività recente": ultime versioni e sessioni di tutti.
+    match /{path=**}/versions/{id} { allow read: if isAdmin(); }
+    match /{path=**}/sessions/{id} { allow read: if isAdmin(); }
   }
 }

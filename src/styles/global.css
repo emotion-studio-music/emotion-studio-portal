@@ -250,6 +250,42 @@ button { font: inherit; color: inherit; }
 .artist-tile .meta { position: absolute; z-index: 1; left: 16px; right: 16px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
 .artist-tile .name { font-family: var(--font-display); font-weight: 850; font-stretch: 115%; font-size: 26px; line-height: 1; }
 .artist-tile.inactive img { filter: grayscale(1) brightness(.6); }
+@media (max-width: 640px) { .artist-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .artist-tile .name { font-size: 20px; overflow-wrap: anywhere; } .artist-tile .meta { left: 12px; right: 12px; } }
+
+/* Admin: ricerca, ordinamento e filtri degli artisti */
+.artists-tools { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
+.artists-tools-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.artists-sort { display: flex; align-items: center; gap: 8px; }
+.artists-sort .select { min-height: 44px; }
+.artists-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.artists-filters .pick { min-height: 44px; white-space: nowrap; }
+@media (max-width: 640px) {
+  /* su telefono i filtri scorrono di lato invece di occupare mezzo schermo */
+  .artists-filters { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .artists-filters::-webkit-scrollbar { display: none; }
+  .artists-filters .pick { flex-shrink: 0; }
+  .artists-sort { flex: 1 1 100%; min-width: 0; }
+  .artists-sort .select { flex: 1; min-width: 0; }
+  .artists-tools-row .seg { flex: 1 1 100%; }
+  .artists-tools-row .seg button { flex: 1; min-height: 44px; }
+}
+.artist-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); }
+.artist-list li + li { border-top: 1px solid var(--line); }
+.artist-line {
+  display: grid; grid-template-columns: minmax(0, 2fr) auto minmax(0, 1fr) minmax(0, 1.2fr); gap: 12px; align-items: center;
+  padding: 12px 16px; min-height: 56px; color: var(--text);
+}
+.artist-line:hover { background: var(--surface-2); color: var(--text); }
+.artist-line.inactive .artist-line-name strong { color: var(--muted); }
+.artist-line-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.artist-line-name strong { font-size: 16px; overflow-wrap: anywhere; }
+.artist-line-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.artist-line-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.artist-line-cell .small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 640px) {
+  .artist-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 10px; }
+  .artist-line-badges { justify-content: flex-end; }
+}
 .monogram {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-family: var(--font-display); font-weight: 900; font-stretch: 125%; font-size: 84px; color: var(--line-strong);

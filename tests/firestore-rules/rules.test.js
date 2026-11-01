@@ -361,9 +361,15 @@ describe('Admin', () => {
     await assertSucceeds(ad().doc('settings/studio').set({ iban: 'IT11' }));
     await assertSucceeds(ad().doc(`users/${uA}`).get());
   });
-  for (const g of ['tracks', 'comments', 'demos', 'payments', 'tasks', 'quotes']) {
+  for (const g of ['tracks', 'comments', 'demos', 'payments', 'tasks', 'quotes', 'versions', 'sessions']) {
     it(`collectionGroup ${g}: consentita`, () => assertSucceeds(ad().collectionGroup(g).get()));
   }
+  it('attività recente (pagina Artisti): ultime versioni, note e sessioni', async () => {
+    for (const g of ['versions', 'comments', 'sessions']) {
+      await assertSucceeds(ad().collectionGroup(g).orderBy('createdAt', 'desc').limit(60).get());
+      await assertFails(db(uA).collectionGroup(g).orderBy('createdAt', 'desc').limit(60).get());
+    }
+  });
   it('collectionGroup comments filtrata resolved==false (vista Oggi)', () =>
     assertSucceeds(ad().collectionGroup('comments').where('resolved', '==', false).get()));
   it('non può creare altri admin dal client (by design)', () => assertFails(ad().doc('admins/nuovo').set({ x: 1 })));
