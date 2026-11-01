@@ -74,6 +74,7 @@ service cloud.firestore {
         allow read: if isCollab();
         // chi è in feat può scrivere note sul brano condiviso (copiando l'elenco dei collaboratori del brano)
         allow create: if signedIn()
+          && request.resource.data.trackId is string && !request.resource.data.trackId.matches('.*/.*')
           && request.auth.uid in get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.get('collaboratorUids', [])
           && request.resource.data.collaboratorUids == get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.collaboratorUids
           && request.resource.data.authorUid == request.auth.uid
@@ -91,6 +92,10 @@ service cloud.firestore {
           && request.resource.data.authorUid == request.auth.uid
           && request.resource.data.authorRole == 'artist'
           && (request.resource.data.atSeconds == null || request.resource.data.atSeconds is number)
+          // l'elenco dei collaboratori sulla nota non si può inventare: vuoto, oppure identico a quello del brano
+          && (request.resource.data.get('collaboratorUids', []).size() == 0
+              || (request.resource.data.trackId is string && !request.resource.data.trackId.matches('.*/.*')
+                  && request.resource.data.collaboratorUids == get(/databases/$(db)/documents/artists/$(a)/tracks/$(request.resource.data.trackId)).data.get('collaboratorUids', [])))
           && request.resource.data.resolved == false
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0

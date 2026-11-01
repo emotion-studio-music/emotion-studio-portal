@@ -557,13 +557,23 @@ async function sendPush(env, sub, msg) {
 
 const pushReady = (env) => Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
 
+/** Solo i servizi di notifica veri (Google, Apple, Mozilla, Microsoft): il Worker non manda richieste altrove. */
+function isPushService(endpoint) {
+  try {
+    const u = new URL(endpoint);
+    if (u.protocol !== 'https:') return false;
+    return [/(^|\.)googleapis\.com$/, /(^|\.)push\.apple\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/]
+      .some((re) => re.test(u.hostname));
+  } catch { return false; }
+}
+
 /** "Invia una notifica di prova" dall'app: il dispositivo manda la sua iscrizione, il Worker la usa subito. */
 async function pushTest(req, env) {
   await verifyUser(req, env);
   if (!pushReady(env)) throw new HttpError(501, 'Le notifiche non sono ancora configurate nel Worker (chiavi VAPID).');
   const { subscription } = await req.json();
   const sub = { endpoint: subscription?.endpoint, p256dh: subscription?.keys?.p256dh, auth: subscription?.keys?.auth };
-  if (!sub.endpoint || !/^https:\/\//.test(sub.endpoint) || !sub.p256dh || !sub.auth) throw new HttpError(400, 'Iscrizione non valida.');
+  if (!sub.endpoint || !isPushService(sub.endpoint) || !sub.p256dh || !sub.auth) throw new HttpError(400, 'Iscrizione non valida.');
   const status = await sendPush(env, sub, { title: 'Emotion Studio', body: 'Le notifiche funzionano 🎧', url: '/' });
   if (status >= 300) throw new HttpError(502, `Il servizio di notifiche ha risposto ${status}. Riprova ad attivarle.`);
   return { ok: true };
@@ -718,6 +728,7 @@ async function notifyRun(env) {
     const subs = subsCache.get(ev.uid);
     if (sent + subs.length > 12) { lastRun = ev.at - 1; break; }
     for (const s of subs) {
+      if (!isPushService(s.endpoint || '')) continue;
       const status = await sendPush(env, { endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth }, ev.msg).catch(() => 0);
       sent++;
       if (status === 404 || status === 410) await fsAdmin(env, `https://firestore.googleapis.com/v1/${s.name}`, { method: 'DELETE' });

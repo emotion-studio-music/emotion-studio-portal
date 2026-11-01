@@ -4,6 +4,7 @@ import {
   type DocumentData, type Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { safeLinks } from './safeUrl';
 import { stepsFromLegacyStage, stepsFromTemplate, type Step } from './steps';
 
 export type ProjectType = 'singolo' | 'ep' | 'album';
@@ -75,7 +76,7 @@ const toProject = (id: string, d: DocumentData): Project => ({
 const toTrack = (id: string, d: DocumentData, owner = ''): Track => ({
   id, projectId: d.projectId, title: d.title ?? '', stage: d.stage ?? 0, steps: Array.isArray(d.steps) ? d.steps : null, order: d.order ?? 0,
   awaitingReview: d.awaitingReview ?? false, currentVersionId: d.currentVersionId ?? null,
-  checklist: d.checklist ?? {}, links: d.links ?? {}, collaboratorIds: d.collaboratorIds ?? [], collaboratorUids: d.collaboratorUids ?? [],
+  checklist: d.checklist ?? {}, links: safeLinks(d.links), collaboratorIds: d.collaboratorIds ?? [], collaboratorUids: d.collaboratorUids ?? [],
   ownerName: d.ownerName ?? '', ownerArtistId: owner, collaboratorNames: d.collaboratorNames ?? [], publishedAt: d.publishedAt ?? '', updatedMs: ms(d.updatedAt),
 });
 const toVersion = (id: string, d: DocumentData): Version => ({

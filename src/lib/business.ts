@@ -3,6 +3,7 @@ import {
   addDoc, collection, collectionGroup, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, type DocumentData, type Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { safeUrl } from './safeUrl';
 
 const ms = (t: unknown) => (t as Timestamp | undefined)?.toMillis?.() ?? Date.now();
 export const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -42,7 +43,7 @@ const toQuote = (id: string, a: string, d: DocumentData): Quote => ({
 });
 const toPayment = (id: string, a: string, d: DocumentData): Payment => ({
   id, artistId: a, quoteId: d.quoteId ?? '', kind: d.kind ?? 'altro', amountCents: d.amountCents ?? 0, status: d.status ?? 'da_pagare',
-  dueDate: d.dueDate ?? '', cardLink: d.cardLink ?? '', invoiceNumber: d.invoiceNumber ?? '', note: d.note ?? '',
+  dueDate: d.dueDate ?? '', cardLink: safeUrl(d.cardLink) ?? '', invoiceNumber: d.invoiceNumber ?? '', note: d.note ?? '',
   reportedMethod: d.reportedMethod ?? '', paidDate: d.paidDate ?? '', createdMs: ms(d.createdAt),
 });
 const toTask = (id: string, a: string, d: DocumentData): Task => ({

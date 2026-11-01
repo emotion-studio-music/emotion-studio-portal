@@ -2,7 +2,8 @@ import { deleteApp, initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signOut,
 } from 'firebase/auth';
-import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import { setCollaborators, type Track } from './music';
 import { auth, db, firebaseConfig } from './firebase';
 import { createUserOnServer, updateUserOnServer } from './worker';
 import { toLoginEmail } from './username';
@@ -55,8 +56,26 @@ export function updateArtist(id: string, data: Partial<ArtistInput>) {
   return updateDoc(doc(db, 'artists', id), { ...data, updatedAt: serverTimestamp() });
 }
 
-export function setArtistActive(id: string, active: boolean) {
-  return updateDoc(doc(db, 'artists', id), { active, updatedAt: serverTimestamp() });
+/**
+ * Attiva/disattiva un artista. Disattivandolo lo togliamo anche dai brani di altri artisti in cui era in feat,
+ * così non può più leggerli in nessun modo.
+ */
+export async function setArtistActive(id: string, active: boolean) {
+  await updateDoc(doc(db, 'artists', id), { active, updatedAt: serverTimestamp() });
+  if (active) return;
+  const a = await getDoc(doc(db, 'artists', id));
+  const uids = (a.data()?.memberUids as string[] | undefined) ?? [];
+  for (const uid of uids) {
+    const shared = await getDocs(query(collectionGroup(db, 'tracks'), where('collaboratorUids', 'array-contains', uid)));
+    for (const t of shared.docs) {
+      const ownerId = t.ref.parent.parent?.id;
+      if (!ownerId) continue;
+      const owner = await getDoc(doc(db, 'artists', ownerId));
+      const track = { ...t.data(), id: t.id, projectId: t.data().projectId } as unknown as Track;
+      await setCollaborators(ownerId, (owner.data()?.stageName as string) ?? '', track,
+        ((t.data().collaboratorIds as string[] | undefined) ?? []).filter((x) => x !== id));
+    }
+  }
 }
 
 export function savePrivateNotes(id: string, notes: string) {

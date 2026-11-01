@@ -379,6 +379,26 @@ Preventivi e pagamenti restano separati per artista. Per togliere un feat, tocca
   (iOS 16.4 o successivo): prima si installa, poi si apre dall'icona e si attivano.
 - Ogni dispositivo si attiva a parte (telefono, computer).
 
+---
+
+## Revisione di sicurezza (1 novembre 2026)
+
+Corretto in questo aggiornamento:
+- **Notifiche di prova**: il Worker invia solo ai servizi di notifica veri (Google, Apple, Mozilla, Microsoft), non a indirizzi qualsiasi.
+- **Note sui brani in feat**: un artista non può più aggiungere a una nota collaboratori inventati; l'elenco deve coincidere con quello del brano.
+- **Link salvati** (social, store, pagamento con carta): l'app accetta solo link `http/https`.
+- **Artista disattivato**: viene tolto automaticamente dai feat sui brani degli altri artisti.
+
+Da fare a mano (consigliato): Firebase → Authentication → Impostazioni → **Azioni utente** → togli
+**Abilita creazione (registrazione)**. Ora che il Worker crea gli account, nessuno può più registrarsi da solo
+(oggi un estraneo potrebbe creare un account e leggere le istruzioni di pagamento dello studio).
+
+Limiti noti, accettati:
+- I link di ascolto/download valgono 3 ore: chi li riceve può usarli in quel tempo.
+- Chi conosce l'indirizzo `/health` del Worker vede solo lo spazio Drive usato.
+- Un artista potrebbe caricare molte demo (100 MB ciascuna): tieni d'occhio lo spazio Drive nel pannello Musica.
+- Le regole di sicurezza sono state riviste sul codice; un test automatico con l'emulatore Firebase si può fare con Claude Code.
+
 ## Cosa arriva nelle prossime fasi
 
 - Idee future: riepilogo email per lo studio, promemoria sessione il giorno prima

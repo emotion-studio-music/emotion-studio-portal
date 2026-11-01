@@ -3,6 +3,7 @@ import {
   collection, doc, onSnapshot, orderBy, query, setDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { safeLinks } from './safeUrl';
 import { defaultFocus, emptySession, emptySettings, type Artist, type NextSession, type PhotoFocus, type StudioSettings } from './types';
 
 // Compatibile anche con la vecchia versione, dove la sessione era solo testo.
@@ -22,7 +23,7 @@ function toArtist(id: string, d: Record<string, unknown>): Artist {
     photoFocus: { ...defaultFocus, ...((d.photoFocus as Partial<PhotoFocus>) ?? {}) },
     genres: (d.genres as string[]) ?? [],
     phone: (d.phone as string) ?? '',
-    links: (d.links as Artist['links']) ?? {},
+    links: safeLinks(d.links as Artist['links']),
     nextSession: toSession(d.nextSession),
     memberUids: (d.memberUids as string[]) ?? [],
     memberEmails: (d.memberEmails as string[]) ?? [],
