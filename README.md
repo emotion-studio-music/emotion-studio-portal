@@ -421,12 +421,28 @@ Chi ha l'app già aperta in quel momento potrebbe non vedere l'IBAN finché non 
 
 Ancora da fare: un artista esperto, con gli strumenti per sviluppatori, può ancora vedere se una sua demo è "Scartata" e le stelle.
 
-**Test delle regole** (servono Java e firebase-tools), dalla cartella del progetto:
+## Test delle regole
+
+Sono test automatici che provano a "forzare" il database come farebbe un artista curioso o un estraneo
+(leggere i dati di un altro artista, segnare pagato un pagamento, ecc.) e controllano che le regole dicano di no.
+Girano su un database finto sul tuo computer: non toccano i dati veri.
+
+**Cosa ti serve (una volta sola)**
+- **Java** (es. Temurin: `brew install --cask temurin`). Per controllare: `java -version`.
+- **firebase-tools** (già installato nella sezione 5).
+- Le librerie dei test: nel Terminale, nella cartella del progetto, `cd tests/firestore-rules && npm install && cd ../..`
+
+**Eseguirli** – sempre dalla **cartella principale del progetto** (non da `tests/firestore-rules`: da lì l'emulatore
+rifiuta il file delle regole):
 ```
-cd tests/firestore-rules && npm install && cd ../..
 npx firebase emulators:exec --only firestore --project demo-emotion "cd tests/firestore-rules && npx vitest run"
 ```
-Deve finire con tutti i test passati ("1 expected fail" è il punto ancora da fare).
+
+**Come leggere il risultato** – deve finire con `Tests  114 passed | 1 expected fail`. "Expected fail" è il punto ancora
+da fare (le demo "Scartata"), è normale. Se compare una riga con `×` o `failed`, una regola non protegge più qualcosa:
+non pubblicare con `npm run deploy` finché non è sistemata.
+
+Eseguili ogni volta che cambi `firestore.rules`, prima di `npm run deploy`.
 
 ## Cosa arriva nelle prossime fasi
 
