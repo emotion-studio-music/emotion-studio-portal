@@ -364,6 +364,10 @@ describe('Admin', () => {
   for (const g of ['tracks', 'comments', 'demos', 'payments', 'tasks', 'quotes', 'versions', 'sessions']) {
     it(`collectionGroup ${g}: consentita`, () => assertSucceeds(ad().collectionGroup(g).get()));
   }
+  it('feat di un artista (pannello Musica e anteprima): consentito allo studio, non agli artisti', async () => {
+    await assertSucceeds(ad().collectionGroup('tracks').where('collaboratorIds', 'array-contains', 'C').get());
+    await assertFails(db(uA).collectionGroup('tracks').where('collaboratorIds', 'array-contains', 'C').get());
+  });
   it('attività recente (pagina Artisti): ultime versioni, note e sessioni', async () => {
     for (const g of ['versions', 'comments', 'sessions']) {
       await assertSucceeds(ad().collectionGroup(g).orderBy('createdAt', 'desc').limit(60).get());

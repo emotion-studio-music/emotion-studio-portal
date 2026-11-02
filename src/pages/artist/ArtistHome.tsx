@@ -177,7 +177,7 @@ export function ArtistHome({ artistId, preview }: Props) {
           )}
         </section>
 
-        {!preview && <SharedTracks />}
+        <SharedTracks previewOf={preview ? artistId : undefined} />
 
         <section className="section">
           <h2 className="h2">Da fare</h2>

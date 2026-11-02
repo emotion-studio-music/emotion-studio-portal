@@ -158,6 +158,18 @@ export function useProjectDoc(artistId: string | null, projectId: string | null 
   return project;
 }
 
+/** Solo studio: brani di altri artisti in cui questo artista è in feat (per il suo pannello e l'anteprima). */
+export function useFeatTracks(artistId: string | null) {
+  const [tracks, setTracks] = useState<Track[]>([]);
+  useEffect(() => {
+    if (!artistId) return;
+    return onSnapshot(query(collectionGroup(db, 'tracks'), where('collaboratorIds', 'array-contains', artistId)),
+      (s) => setTracks(s.docs.map((d) => toTrack(d.id, d.data(), d.ref.parent.parent?.id ?? ''))
+        .sort((a, b) => a.createdMs - b.createdMs)), () => setTracks([]));
+  }, [artistId]);
+  return tracks;
+}
+
 /** Brani di altri artisti in cui questo account è in feat. */
 export function useSharedTracks(uid: string | null) {
   const [tracks, setTracks] = useState<Track[]>([]);

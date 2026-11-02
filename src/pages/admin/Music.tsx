@@ -8,7 +8,7 @@ import { StepsEditor } from '../../components/StepsEditor';
 import { TrackProgress } from '../../components/TrackProgress';
 import {
   PROJECT_TYPES, addVersion, createProject, createTrack, deleteProject, deleteTrack, deleteVersion, moveInOrder,
-  setCollaborators, trackSteps, updateProject, updateTrack, updateVersion, useProjects, useTracks, useVersions,
+  setCollaborators, trackSteps, updateProject, updateTrack, updateVersion, useFeatTracks, useProjects, useTracks, useVersions,
   type Project, type ProjectType, type Track,
 } from '../../lib/music';
 import { analyzeAudio, formatTime } from '../../lib/audio';
@@ -26,6 +26,7 @@ export function Music() {
   const { artist, loading } = useArtist(id);
   const { projects } = useProjects(id ?? null);
   const { tracks } = useTracks(id ?? null);
+  const feats = useFeatTracks(id ?? null);
   const { settings } = useSettings();
   const comments = useComments(id ?? null);
   const [showNew, setShowNew] = useState(false);
@@ -69,7 +70,7 @@ export function Music() {
       {showNew && <NewProject artist={artist} onDone={() => setShowNew(false)} />}
 
       {projects.length === 0 && !showNew && (
-        <div className="empty"><strong>Nessun progetto</strong>Crea un singolo o un EP, poi aggiungi i brani e carica le versioni.</div>
+        <div className="empty"><strong>Nessun progetto</strong>Crea un singolo o un EP, poi aggiungi i brani e carica le versioni.{feats.length > 0 && ' I brani in feat con altri artisti sono qui sotto.'}</div>
       )}
 
       {active.map((p, i) => (
@@ -90,7 +91,40 @@ export function Music() {
           ))}
         </section>
       )}
+
+      {feats.length > 0 && <FeatTracks tracks={feats} template={settings.stepTemplate} />}
     </>
+  );
+}
+
+/** Brani di altri artisti in cui questo artista è in feat: si gestiscono nella Musica dell'artista principale. */
+function FeatTracks({ tracks, template }: { tracks: Track[]; template: string[] }) {
+  return (
+    <section className="section">
+      <div>
+        <h2 className="h2">Collaborazioni</h2>
+        <p className="small muted" style={{ margin: '6px 0 0' }}>
+          Brani in feat caricati nel profilo di un altro artista. È lo stesso brano: versioni, note e percorso si gestiscono lì.
+        </p>
+      </div>
+      <div className="card project-card">
+        {tracks.map((t) => (
+          <div key={`${t.ownerArtistId}-${t.id}`} className="track-row" style={{ gap: 12 }}>
+            <div className="track-row-head" style={{ flexWrap: 'wrap' }}>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span style={{ fontSize: 16, fontWeight: 600, overflowWrap: 'anywhere' }}>{t.title}</span>
+                <span className="tiny muted">brano di {t.ownerName || 'un altro artista'}{t.collaboratorNames.length ? ` · feat. ${t.collaboratorNames.join(', ')}` : ''}</span>
+              </span>
+              <div className="row-actions">
+                <Link className="btn btn-sm" to={`/admin/artisti/${t.ownerArtistId}/brani/${t.id}`}>Ascolta</Link>
+                <Link className="btn btn-sm" to={`/admin/artisti/${t.ownerArtistId}/musica`}>Gestisci{t.ownerName ? ` in ${t.ownerName}` : ''}</Link>
+              </div>
+            </div>
+            <TrackProgress progress={progressOf(trackSteps(t, template))} />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
