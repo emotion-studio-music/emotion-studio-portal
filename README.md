@@ -244,7 +244,7 @@ I file finiscono su Drive in `Emotion Studio – App / Artista / Demo`, sempre d
 **Oggi** (prima voce del menu, con il numero delle cose in sospeso) – pagamenti segnalati dagli artisti da confermare,
 note degli artisti da risolvere, demo nuove, task scaduti o tuoi, pagamenti scaduti, sessioni dei prossimi 7 giorni.
 
-**Lavori e pagamenti** (dal profilo dell'artista → "Pagamenti, sessioni e task"):
+**Pagamenti** e **Sessioni e task** (dal profilo dell'artista, due pulsanti separati):
 - *Pagamenti*: crei un **preventivo** (per cosa, importo concordato, progetto). Poi **chiedi all'artista** un acconto o il saldo
   (con scadenza e, se vuoi, un link per pagare con carta generato da Nexi/SumUp/Stripe) oppure **registri un incasso** già ricevuto.
   Quando l'artista preme "Ho pagato" lo vedi in Oggi: controlli e premi **Conferma incasso**. Puoi annotare il numero di fattura.
@@ -263,7 +263,7 @@ Le fatture continui a emetterle dal tuo programma: nell'app annoti solo il numer
 
 **Aggiorna il Worker** (Cloudflare → `emotion-api` → Modifica codice → incolla `worker/worker.js` → Deploy): serve per scaricare le copertine.
 
-**Preventivi a clic** – In "Lavori e pagamenti → Pagamenti": tocchi i servizi, i brani (o "+ nuovo brano"), "A brano" o "Totale",
+**Preventivi a clic** – Nel profilo dell'artista → "Pagamenti": tocchi i servizi, i brani (o "+ nuovo brano"), "A brano" o "Totale",
 la tariffa (pulsanti a scatti di 50 €, − / +, oppure un importo a mano) e il pagamento ("Ancora niente", "Acconto 50% pagato oggi",
 "Pagato tutto oggi", "Chiedi all'artista"). Il titolo e il totale si scrivono da soli. Servizi e scatto si cambiano in Impostazioni studio.
 

@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useArtist, useSettings } from '../../lib/data';
 import { QuoteBuilder } from '../../components/QuoteBuilder';
 import { useTracks } from '../../lib/music';
@@ -13,35 +13,58 @@ import { errorMessage } from '../../lib/errors';
 import { Loading } from '../../components/Loading';
 import { IconArrowLeft } from '../../components/Icons';
 
-type Tab = 'pagamenti' | 'sessioni' | 'task';
+type WorkTab = 'sessioni' | 'task';
 
-export function Manage() {
+/** Vecchio indirizzo ".../gestione?tab=…": porta alla pagina giusta. */
+export function ManageRedirect() {
   const { id } = useParams();
-  const [params, setParams] = useSearchParams();
-  const tab = (params.get('tab') as Tab) || 'pagamenti';
+  const [params] = useSearchParams();
+  const tab = params.get('tab');
+  return <Navigate to={tab === 'sessioni' || tab === 'task' ? `/admin/artisti/${id}/lavori?tab=${tab}` : `/admin/artisti/${id}/pagamenti`} replace />;
+}
+
+function ArtistPage({ title, children }: { title: string; children: (artistId: string) => ReactNode }) {
+  const { id } = useParams();
   const { artist, loading } = useArtist(id);
   if (loading) return <Loading />;
   if (!artist || !id) return <div className="empty">Artista non trovato.</div>;
-
   return (
     <>
       <div className="page-head">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Link to={`/admin/artisti/${id}`} className="back-link"><IconArrowLeft width={16} height={16} /> {artist.stageName}</Link>
-          <h1 className="display page-title">Lavori e pagamenti</h1>
+          <h1 className="display page-title">{title}</h1>
         </div>
       </div>
-      <div className="seg" role="tablist" style={{ alignSelf: 'flex-start' }}>
-        {(['pagamenti', 'sessioni', 'task'] as Tab[]).map((t) => (
-          <button key={t} type="button" role="tab" aria-pressed={tab === t} aria-selected={tab === t} onClick={() => setParams({ tab: t })}>
-            {t === 'pagamenti' ? 'Pagamenti' : t === 'sessioni' ? 'Sessioni' : 'Task'}
-          </button>
-        ))}
-      </div>
-      {tab === 'pagamenti' && <PaymentsTab artistId={id} />}
-      {tab === 'sessioni' && <SessionsTab artistId={id} />}
-      {tab === 'task' && <TasksTab artistId={id} />}
+      {children(id)}
     </>
+  );
+}
+
+/** Preventivi, richieste di pagamento e incassi dell'artista. */
+export function ManagePayments() {
+  return <ArtistPage title="Pagamenti">{(id) => <PaymentsTab artistId={id} />}</ArtistPage>;
+}
+
+/** Sessioni in studio e cose da fare (per l'artista o per lo studio). */
+export function ManageWork() {
+  const [params, setParams] = useSearchParams();
+  const tab: WorkTab = params.get('tab') === 'task' ? 'task' : 'sessioni';
+  return (
+    <ArtistPage title="Sessioni e task">
+      {(id) => (
+        <>
+          <div className="seg" role="group" aria-label="Sezione" style={{ alignSelf: 'flex-start' }}>
+            {(['sessioni', 'task'] as WorkTab[]).map((t) => (
+              <button key={t} type="button" aria-pressed={tab === t} onClick={() => setParams({ tab: t }, { replace: true })}>
+                {t === 'sessioni' ? 'Sessioni' : 'Task'}
+              </button>
+            ))}
+          </div>
+          {tab === 'sessioni' ? <SessionsTab artistId={id} /> : <TasksTab artistId={id} />}
+        </>
+      )}
+    </ArtistPage>
   );
 }
 

@@ -105,8 +105,9 @@ export function ArtistForm() {
         </div>
         {!isNew && id && (
           <div className="row-actions">
-            <Link to={`/admin/artisti/${id}/musica`} className="btn btn-primary">Musica: progetti e brani</Link>
-            <Link to={`/admin/artisti/${id}/gestione`} className="btn">Pagamenti, sessioni e task</Link>
+            <Link to={`/admin/artisti/${id}/musica`} className="btn">Musica: progetti e brani</Link>
+            <Link to={`/admin/artisti/${id}/pagamenti`} className="btn">Pagamenti</Link>
+            <Link to={`/admin/artisti/${id}/lavori`} className="btn">Sessioni e task</Link>
             <Link to={`/admin/artisti/${id}/demo`} className="btn">Demo</Link>
             <Link to={`/admin/artisti/${id}/anteprima`} className="btn"><IconEye width={18} height={18} /> Vedi come lo vede l’artista</Link>
           </div>

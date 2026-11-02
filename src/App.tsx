@@ -22,7 +22,7 @@ import { DemoPage } from './pages/DemoPage';
 import { Demos } from './pages/admin/Demos';
 import { Upload } from './pages/artist/Upload';
 import { Sessions } from './pages/artist/Sessions';
-import { Manage } from './pages/admin/Manage';
+import { ManagePayments, ManageRedirect, ManageWork } from './pages/admin/Manage';
 import { Today } from './pages/admin/Today';
 
 function ArtistPreview() {
@@ -82,7 +82,9 @@ function Gate() {
           <Route path="impostazioni" element={<Settings />} />
           <Route path="demo" element={<Demos />} />
           <Route path="oggi" element={<Today />} />
-          <Route path="artisti/:id/gestione" element={<Manage />} />
+          <Route path="artisti/:id/pagamenti" element={<ManagePayments />} />
+          <Route path="artisti/:id/lavori" element={<ManageWork />} />
+          <Route path="artisti/:id/gestione" element={<ManageRedirect />} />
           <Route path="artisti/:id/demo" element={<Demos />} />
           <Route path="artisti/:id/demo/:demoId" element={<AdminDemoRoute />} />
         </Route>

@@ -39,7 +39,7 @@ export function Today() {
               <span><strong>{name(p.artistId)}</strong> · {PAYMENT_KIND[p.kind]} {eur(p.amountCents)} · {p.reportedMethod}</span>
               <div className="row-actions">
                 <button className="btn btn-primary btn-sm" onClick={() => void updatePayment(p.artistId, p.id, { status: 'pagato', paidDate: todayKey() })}>Conferma incasso</button>
-                <Link className="btn btn-ghost btn-sm" to={`/admin/artisti/${p.artistId}/gestione`}>Apri</Link>
+                <Link className="btn btn-ghost btn-sm" to={`/admin/artisti/${p.artistId}/pagamenti`}>Apri</Link>
               </div>
             </div>
           ))}
@@ -85,7 +85,7 @@ export function Today() {
       {t.overduePayments.length > 0 && (
         <Block title="Pagamenti scaduti">
           {t.overduePayments.map((p) => (
-            <Link key={p.id} to={`/admin/artisti/${p.artistId}/gestione`} className="today-row link">
+            <Link key={p.id} to={`/admin/artisti/${p.artistId}/pagamenti`} className="today-row link">
               <span><strong>{name(p.artistId)}</strong> · {PAYMENT_KIND[p.kind]} {eur(p.amountCents)}</span>
               <span className="tiny" style={{ color: 'var(--danger)' }}>scaduto il {fmtDay(p.dueDate)}</span>
             </Link>
@@ -129,7 +129,7 @@ function TaskRow({ k, who, name }: { k: Task; who: string; name: string }) {
           {who}{k.dueDate ? ` · ${late ? 'scaduto il' : isToday ? 'scade oggi' : 'entro'} ${isToday ? '' : fmtDay(k.dueDate)}` : ''}
         </span>
       </span>
-      <Link to={`/admin/artisti/${k.artistId}/gestione?tab=task`} className="btn btn-ghost btn-sm" onClick={(e) => e.stopPropagation()}>Apri</Link>
+      <Link to={`/admin/artisti/${k.artistId}/lavori?tab=task`} className="btn btn-ghost btn-sm" onClick={(e) => e.stopPropagation()}>Apri</Link>
     </label>
   );
 }
