@@ -4,6 +4,7 @@ import { useSettings } from '../lib/data';
 import { trackSteps, useFeatTracks, useSharedTracks } from '../lib/music';
 import { progressOf } from '../lib/steps';
 import { TrackProgress } from './TrackProgress';
+import { t } from '../lib/i18n';
 
 /**
  * Brani di altri artisti dello studio in cui sei in feat.
@@ -18,15 +19,15 @@ export function SharedTracks({ previewOf }: { previewOf?: string }) {
   if (!tracks.length) return null;
   return (
     <section className="section">
-      <h2 className="h2">Collaborazioni</h2>
+      <h2 className="h2">{t('Collaborazioni')}</h2>
       <div className="card">
-        {tracks.map((t) => (
-          <Link key={`${t.ownerArtistId}-${t.id}`} to={previewOf ? `/admin/artisti/${t.ownerArtistId}/brani/${t.id}` : `/feat/${t.ownerArtistId}/${t.id}`} className="track-row" style={{ borderTop: 'none' }}>
+        {tracks.map((track) => (
+          <Link key={`${track.ownerArtistId}-${track.id}`} to={previewOf ? `/admin/artisti/${track.ownerArtistId}/brani/${track.id}` : `/feat/${track.ownerArtistId}/${track.id}`} className="track-row" style={{ borderTop: 'none' }}>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 15, fontWeight: 600 }}>{t.title}</span>
-              <span className="tiny muted">con {t.ownerName || 'un altro artista'}{t.awaitingReview ? ' · nuova versione da ascoltare' : ''}</span>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>{track.title}</span>
+              <span className="tiny muted">{t('con {nome}', { nome: track.ownerName || t('un altro artista') })}{track.awaitingReview ? ` · ${t('nuova versione da ascoltare')}` : ''}</span>
             </span>
-            <TrackProgress progress={progressOf(trackSteps(t, settings.stepTemplate))} compact />
+            <TrackProgress progress={progressOf(trackSteps(track, settings.stepTemplate))} compact />
           </Link>
         ))}
       </div>

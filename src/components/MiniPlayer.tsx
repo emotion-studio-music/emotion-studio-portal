@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../lib/player';
 import { Cover } from './Cover';
+import { t } from '../lib/i18n';
 
 /** Mini player fisso: la musica continua mentre navighi. Tocca per tornare al brano. */
 export function MiniPlayer({ bottom }: { bottom: string }) {
@@ -23,12 +24,12 @@ export function MiniPlayer({ bottom }: { bottom: string }) {
             <span className="tiny muted">{v?.label}{pl.versions.B ? ` · ${pl.active}` : ''}{pl.loopOn ? ' · loop' : ''}</span>
           </span>
         </button>
-        <button className="mini-play" onClick={pl.toggle} aria-label={pl.playing ? 'Pausa' : 'Riproduci'}>
+        <button className="mini-play" onClick={pl.toggle} aria-label={pl.playing ? t('Pausa') : t('Riproduci')}>
           {pl.playing
             ? <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
             : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" /></svg>}
         </button>
-        <button className="mini-close" onClick={pl.close} aria-label="Chiudi il lettore">✕</button>
+        <button className="mini-close" onClick={pl.close} aria-label={t('Chiudi il lettore')}>✕</button>
       </div>
     </div>
   );

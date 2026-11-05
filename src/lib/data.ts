@@ -25,6 +25,7 @@ function toArtist(id: string, d: Record<string, unknown>): Artist {
     phone: (d.phone as string) ?? '',
     links: safeLinks(d.links as Artist['links']),
     nextSession: toSession(d.nextSession),
+    language: d.language === 'en' ? 'en' : 'it',
     memberUids: (d.memberUids as string[]) ?? [],
     memberEmails: (d.memberEmails as string[]) ?? [],
     active: (d.active as boolean) ?? true,

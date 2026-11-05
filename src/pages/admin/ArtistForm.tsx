@@ -4,13 +4,14 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useArtist } from '../../lib/data';
 import {
-  changeUsername, createArtist, credentialsMessage, deleteArtist, resetArtistPassword, savePrivateNotes, setArtistActive, updateArtist,
+  changeUsername, createArtist, credentialsMessage, deleteArtist, newPasswordMessage, resetArtistPassword, savePrivateNotes, setArtistActive, updateArtist,
   whatsappLink, type ArtistInput,
 } from '../../lib/admin';
 import { isUsernameAccount, slugUsername, usernameOf } from '../../lib/username';
 import { generatePassword } from '../../lib/password';
 import { compressImage } from '../../lib/image';
 import { errorMessage } from '../../lib/errors';
+import { LANGS, type Lang } from '../../lib/i18n';
 import { Loading } from '../../components/Loading';
 import { SessionPicker } from '../../components/SessionPicker';
 import { FocusPicker } from '../../components/FocusPicker';
@@ -19,10 +20,10 @@ import { IconArrowLeft, IconCopy, IconEye, IconImage } from '../../components/Ic
 
 const empty: ArtistInput = {
   stageName: '', realName: '', bio: '', photo: null, photoFocus: defaultFocus, genres: [], phone: '',
-  links: { instagram: '', spotify: '', tiktok: '', youtube: '' }, nextSession: emptySession,
+  links: { instagram: '', spotify: '', tiktok: '', youtube: '' }, nextSession: emptySession, language: 'it',
 };
 
-interface Created { id: string; stageName: string; username: string; password: string; phone: string }
+interface Created { id: string; stageName: string; username: string; password: string; phone: string; language: Lang }
 
 export function ArtistForm() {
   const { id } = useParams();
@@ -48,6 +49,7 @@ export function ArtistForm() {
     setForm({
       stageName: artist.stageName, realName: artist.realName, bio: artist.bio, photo: artist.photo, photoFocus: artist.photoFocus,
       genres: artist.genres, phone: artist.phone, links: { ...empty.links, ...artist.links }, nextSession: artist.nextSession,
+      language: artist.language,
     });
     setGenresText(artist.genres.join(', '));
     setEmail(artist.memberEmails[0] ?? '');
@@ -79,7 +81,7 @@ export function ArtistForm() {
       if (isNew) {
         const username = email.includes('@') ? email.trim().toLowerCase() : slugUsername(email);
         const newId = await createArtist(username, password, data, notes);
-        setCreated({ id: newId, stageName: data.stageName, username, password, phone: data.phone });
+        setCreated({ id: newId, stageName: data.stageName, username, password, phone: data.phone, language: data.language });
       } else if (id) {
         await updateArtist(id, data);
         await savePrivateNotes(id, notes);
@@ -133,6 +135,15 @@ export function ArtistForm() {
               <FocusPicker src={form.photo} value={form.photoFocus} onChange={(f) => set('photoFocus', f)} />
             </div>
           )}
+          <div className="field">
+            <span>Lingua dell’app dell’artista</span>
+            <div className="seg" role="group" aria-label="Lingua dell’app dell’artista" style={{ alignSelf: 'flex-start' }}>
+              {LANGS.map((l) => (
+                <button key={l.value} type="button" aria-pressed={form.language === l.value} onClick={() => set('language', l.value)}>{l.label}</button>
+              ))}
+            </div>
+            <small>L’artista vede tutta la sua app (e le notifiche) in questa lingua. Tu continui a vederla in italiano.</small>
+          </div>
           <div className="grid-2">
             <label className="field"><span>Nome d’arte *</span>
               <input className="input" required value={form.stageName} onChange={(e) => { set('stageName', e.target.value); if (isNew && !userTouched) setEmail(slugUsername(e.target.value)); }} />
@@ -186,7 +197,7 @@ export function ArtistForm() {
               </label>
             </div>
           ) : (
-            <AccessControls id={id!} email={email} uid={artist!.memberUids[0] ?? ''} stageName={artist!.stageName} phone={artist!.phone} active={artist!.active} />
+            <AccessControls id={id!} email={email} uid={artist!.memberUids[0] ?? ''} stageName={artist!.stageName} phone={artist!.phone} active={artist!.active} language={artist!.language} />
           )}
         </section>
 
@@ -208,7 +219,7 @@ export function ArtistForm() {
   );
 }
 
-function AccessControls({ id, email, uid, stageName, phone, active }: { id: string; email: string; uid: string; stageName: string; phone: string; active: boolean }) {
+function AccessControls({ id, email, uid, stageName, phone, active, language }: { id: string; email: string; uid: string; stageName: string; phone: string; active: boolean; language: Lang }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [newPass, setNewPass] = useState<string | null>(null);
@@ -225,7 +236,7 @@ function AccessControls({ id, email, uid, stageName, phone, active }: { id: stri
     if (await run(() => resetArtistPassword(uid, p), 'Nuova password impostata: mandala all’artista.')) { setNewPass(p); setDraftPass(null); }
   };
   const appUrl = window.location.origin;
-  const passText = newPass ? `Ciao ${stageName}, ecco i tuoi nuovi dati per Emotion Studio:\n${appUrl}\nNome utente: ${username}\nPassword: ${newPass}` : '';
+  const passText = newPass ? newPasswordMessage(stageName, username, newPass, appUrl, language) : '';
 
   return (
     <>
@@ -303,7 +314,7 @@ function AccessControls({ id, email, uid, stageName, phone, active }: { id: stri
 
 function CreatedPanel({ c, onDone }: { c: Created; onDone: () => void }) {
   const appUrl = window.location.origin;
-  const text = credentialsMessage(c.stageName, c.username, c.password, appUrl);
+  const text = credentialsMessage(c.stageName, c.username, c.password, appUrl, c.language);
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try { await navigator.clipboard.writeText(text); setCopied(true); } catch { setCopied(false); }

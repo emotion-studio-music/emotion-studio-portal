@@ -571,10 +571,10 @@ function isPushService(endpoint) {
 async function pushTest(req, env) {
   await verifyUser(req, env);
   if (!pushReady(env)) throw new HttpError(501, 'Le notifiche non sono ancora configurate nel Worker (chiavi VAPID).');
-  const { subscription } = await req.json();
+  const { subscription, lang } = await req.json();
   const sub = { endpoint: subscription?.endpoint, p256dh: subscription?.keys?.p256dh, auth: subscription?.keys?.auth };
   if (!sub.endpoint || !isPushService(sub.endpoint) || !sub.p256dh || !sub.auth) throw new HttpError(400, 'Iscrizione non valida.');
-  const status = await sendPush(env, sub, { title: 'Emotion Studio', body: 'Le notifiche funzionano 🎧', url: '/' });
+  const status = await sendPush(env, sub, { title: 'Emotion Studio', body: lang === 'en' ? 'Notifications are working 🎧' : 'Le notifiche funzionano 🎧', url: '/' });
   if (status >= 300) throw new HttpError(502, `Il servizio di notifiche ha risposto ${status}. Riprova ad attivarle.`);
   return { ok: true };
 }
@@ -640,7 +640,8 @@ async function fsPatch(env, path, fields) {
   await fsAdmin(env, `${fsBase(env)}/${path}?${mask}`, { method: 'PATCH', body: JSON.stringify(body) });
 }
 
-const euro = (cents) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format((cents || 0) / 100);
+const euro = (cents, lang) => new Intl.NumberFormat(lang === 'en' ? 'en-GB' : 'it-IT', { style: 'currency', currency: 'EUR' }).format((cents || 0) / 100);
+const langOfArtist = (a) => (a && a.language === 'en' ? 'en' : 'it');
 
 /**
  * Controllo periodico (ogni 5 minuti, "Cron Trigger" di Cloudflare): cerca le novità nel database
@@ -662,12 +663,23 @@ async function notifyRun(env) {
   // eventi: [quando, a chi (uid), messaggio]
   const events = [];
   const add = (at, uids, msg) => { for (const uid of new Set(uids)) events.push({ at, uid, msg }); };
+  // lingua di un utente artista: quella del suo artista (users/{uid}.artistId), di default l'italiano
+  const langCache = new Map();
+  const langOf = async (uid) => {
+    if (!langCache.has(uid)) {
+      const u = await fsGet(env, `users/${uid}`);
+      langCache.set(uid, u && u.artistId ? langOfArtist(await artist(u.artistId)) : 'it');
+    }
+    return langCache.get(uid);
+  };
+  /** Chi avvisare per un brano: i membri dell'artista e chi è in feat, ognuno con la sua lingua. */
   const artistTargets = async (a, t, path) => {
     const art = await artist(a);
-    const list = (art.memberUids || []).map((uid) => ({ uid, url: path(false) }));
-    if (t) for (const uid of (await track(a, t)).collaboratorUids || []) list.push({ uid, url: path(true) });
+    const list = (art.memberUids || []).map((uid) => ({ uid, url: path(false), lang: langOfArtist(art) }));
+    if (t) for (const uid of (await track(a, t)).collaboratorUids || []) list.push({ uid, url: path(true), lang: await langOf(uid) });
     return list;
   };
+  const en = (x) => x.lang === 'en';
 
   for (const c of await fsSince(env, 'comments', 'createdAt', since)) {
     const isDemo = String(c.trackId || '').startsWith('demo:');
@@ -677,11 +689,13 @@ async function notifyRun(env) {
     } else if (!isDemo) {
       const tr = await track(c.artistId, c.trackId);
       for (const x of await artistTargets(c.artistId, c.trackId, (feat) => (feat ? `/feat/${c.artistId}/${c.trackId}` : `/brano/${c.trackId}`))) {
-        add(c.createdAt, [x.uid], { title: `Nota dello studio su “${tr.title || 'un brano'}”`, body: String(c.text || '').slice(0, 120), url: x.url });
+        const title = en(x) ? `Note from the studio on “${tr.title || 'a track'}”` : `Nota dello studio su “${tr.title || 'un brano'}”`;
+        add(c.createdAt, [x.uid], { title, body: String(c.text || '').slice(0, 120), url: x.url });
       }
     } else {
       const art = await artist(c.artistId);
-      add(c.createdAt, art.memberUids || [], { title: 'Lo studio ha commentato la tua demo', body: String(c.text || '').slice(0, 120), url: `/demo/${c.trackId.slice(5)}` });
+      const title = langOfArtist(art) === 'en' ? 'The studio commented on your demo' : 'Lo studio ha commentato la tua demo';
+      add(c.createdAt, art.memberUids || [], { title, body: String(c.text || '').slice(0, 120), url: `/demo/${c.trackId.slice(5)}` });
     }
   }
   for (const d of await fsSince(env, 'demos', 'createdAt', since)) {
@@ -692,31 +706,38 @@ async function notifyRun(env) {
     if (v.label === 'Demo') continue; // creata da "Porta in studio"
     const tr = await track(v.artistId, v.trackId);
     for (const x of await artistTargets(v.artistId, v.trackId, (feat) => (feat ? `/feat/${v.artistId}/${v.trackId}` : `/brano/${v.trackId}`))) {
-      const title = v.replacedAt ? 'Versione aggiornata da ascoltare 🎧' : v.first ? 'Nuovo brano da ascoltare 🎧' : 'Nuova versione da ascoltare 🎧';
-      add(v.createdAt, [x.uid], { title, body: `${tr.title || 'Il tuo brano'} · ${v.label || ''}`, url: x.url });
+      const title = en(x)
+        ? (v.replacedAt ? 'Updated version to listen to 🎧' : v.first ? 'New track to listen to 🎧' : 'New version to listen to 🎧')
+        : (v.replacedAt ? 'Versione aggiornata da ascoltare 🎧' : v.first ? 'Nuovo brano da ascoltare 🎧' : 'Nuova versione da ascoltare 🎧');
+      add(v.createdAt, [x.uid], { title, body: `${tr.title || (en(x) ? 'Your track' : 'Il tuo brano')} · ${v.label || ''}`, url: x.url });
     }
   }
   for (const p of await fsSince(env, 'payments', 'createdAt', since)) {
     if (p.status !== 'da_pagare') continue;
     const art = await artist(p.artistId);
-    add(p.createdAt, art.memberUids || [], { title: 'Richiesta di pagamento', body: `${euro(p.amountCents)} · trovi come pagare nell’app`, url: '/pagamenti' });
+    const lang = langOfArtist(art);
+    add(p.createdAt, art.memberUids || [], lang === 'en'
+      ? { title: 'Payment request', body: `${euro(p.amountCents, lang)} · see how to pay in the app`, url: '/pagamenti' }
+      : { title: 'Richiesta di pagamento', body: `${euro(p.amountCents, lang)} · trovi come pagare nell’app`, url: '/pagamenti' });
   }
   for (const p of await fsSince(env, 'payments', 'reportedAt', since)) {
     if (p.status !== 'segnalato') continue;
     const art = await artist(p.artistId);
-    add(p.reportedAt, adminUids, { title: `${art.stageName || 'Un artista'} dice di aver pagato`, body: `${euro(p.amountCents)} · ${p.reportedMethod || ''} — da confermare`, url: '/admin/oggi' });
+    add(p.reportedAt, adminUids, { title: `${art.stageName || 'Un artista'} dice di aver pagato`, body: `${euro(p.amountCents, 'it')} · ${p.reportedMethod || ''} — da confermare`, url: '/admin/oggi' });
   }
   for (const t of await fsSince(env, 'tasks', 'createdAt', since)) {
     if (t.assignee !== 'artist') continue;
     const art = await artist(t.artistId);
-    add(t.createdAt, art.memberUids || [], { title: 'Nuova cosa da fare', body: t.title || '', url: '/' });
+    add(t.createdAt, art.memberUids || [], { title: langOfArtist(art) === 'en' ? 'New to-do' : 'Nuova cosa da fare', body: t.title || '', url: '/' });
   }
   for (const t of await fsSince(env, 'tracks', 'updatedAt', since)) {
     if (!t.publishedAt || t.pushPublished) continue;
     const recent = new Date(since - 2 * 86_400_000).toISOString().slice(0, 10);
     if (t.publishedAt < recent) { await fsPatch(env, `artists/${t.artistId}/tracks/${t.id}`, { pushPublished: true }); continue; }
     for (const x of await artistTargets(t.artistId, t.id, (feat) => (feat ? `/feat/${t.artistId}/${t.id}` : `/brano/${t.id}`))) {
-      add(t.updatedAt, [x.uid], { title: `🚀 “${t.title}” è uscito!`, body: 'Apri l’app: c’è una sorpresa per te.', url: x.url });
+      add(t.updatedAt, [x.uid], en(x)
+        ? { title: `🚀 “${t.title}” is out!`, body: 'Open the app: there’s a surprise for you.', url: x.url }
+        : { title: `🚀 “${t.title}” è uscito!`, body: 'Apri l’app: c’è una sorpresa per te.', url: x.url });
     }
     await fsPatch(env, `artists/${t.artistId}/tracks/${t.id}`, { pushPublished: true });
   }

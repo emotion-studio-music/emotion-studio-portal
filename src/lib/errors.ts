@@ -1,3 +1,4 @@
+import { t } from './i18n';
 // Traduce gli errori di Firebase in messaggi chiari in italiano.
 export function errorMessage(e: unknown): string {
   const code = (e as { code?: string })?.code ?? '';
@@ -14,7 +15,7 @@ export function errorMessage(e: unknown): string {
     'permission-denied': 'Non hai i permessi per questa operazione.',
     unavailable: 'Servizio non raggiungibile. Riprova tra poco.',
   };
-  if (map[code]) return map[code];
-  if (e instanceof Error && e.message && !code) return e.message;
-  return 'Qualcosa non ha funzionato. Riprova.';
+  if (map[code]) return t(map[code]);
+  if (e instanceof Error && e.message && !code) return t(e.message);
+  return t('Qualcosa non ha funzionato. Riprova.');
 }

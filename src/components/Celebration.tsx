@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { Badge } from '../lib/badges';
 import type { Track } from '../lib/music';
+import { t } from '../lib/i18n';
 
 const COLORS = ['#FFB547', '#F16D2F', '#E2452B', '#F4F4F1', '#FF8A4C'];
 
@@ -20,15 +21,15 @@ export function Celebration({ badge, track, onClose }: { badge: Badge; track?: T
       </div>
       <div className="celebration-card" onClick={(e) => e.stopPropagation()}>
         <div className="badge-medal big" aria-hidden="true">{badge.emoji}</div>
-        <span className="hero-kicker">Nuovo traguardo</span>
+        <span className="hero-kicker">{t('Nuovo traguardo')}</span>
         <h2 className="display" style={{ fontSize: 'clamp(30px, 8vw, 44px)', textAlign: 'center' }}>{badge.title}</h2>
         <p className="muted" style={{ margin: 0, textAlign: 'center' }}>{badge.desc}</p>
         <div className="row-actions" style={{ justifyContent: 'center' }}>
-          {links.spotify && <a className="btn btn-primary btn-sm" href={links.spotify} target="_blank" rel="noreferrer">Ascolta su Spotify</a>}
+          {links.spotify && <a className="btn btn-primary btn-sm" href={links.spotify} target="_blank" rel="noreferrer">{t('Ascolta su Spotify')}</a>}
           {links.apple && <a className="btn btn-sm" href={links.apple} target="_blank" rel="noreferrer">Apple Music</a>}
           {links.youtube && <a className="btn btn-sm" href={links.youtube} target="_blank" rel="noreferrer">YouTube</a>}
         </div>
-        <button className="btn btn-block" onClick={onClose}>Grande! 🎉</button>
+        <button className="btn btn-block" onClick={onClose}>{t('Grande! 🎉')}</button>
       </div>
     </div>
   );

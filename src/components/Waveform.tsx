@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin, { type Region } from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import type { Loop } from '../lib/player';
+import { t } from '../lib/i18n';
 
 export interface Marker { id: string; at: number; resolved: boolean; title: string }
 
@@ -107,5 +108,5 @@ export function Waveform(p: Props) {
     return rp.enableDragSelection({ color: 'rgba(255,181,71,0.22)' });
   }, [p.selectingLoop, p.media, p.versionKey]);
 
-  return <div className={`player-wave${p.selectingLoop ? ' selecting' : ''}`} ref={box} aria-label="Forma d’onda: tocca per spostarti nel brano" />;
+  return <div className={`player-wave${p.selectingLoop ? ' selecting' : ''}`} ref={box} aria-label={t('Forma d’onda: tocca per spostarti nel brano')} />;
 }

@@ -10,6 +10,7 @@ import { auth, db, firebaseConfig } from './firebase';
 import { createUserOnServer, deleteUserOnServer, trashArtistFolder, updateUserOnServer, workerConfigured } from './worker';
 import { toLoginEmail } from './username';
 import type { Artist } from './types';
+import type { Lang } from './i18n';
 
 export type ArtistInput = Omit<Artist, 'id' | 'memberUids' | 'memberEmails' | 'active' | 'driveFolderId' | 'createdMs'>;
 
@@ -125,11 +126,24 @@ export function whatsappLink(phone: string, text: string) {
   return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
 }
 
-export function credentialsMessage(stageName: string, username: string, password: string, appUrl: string) {
+export function credentialsMessage(stageName: string, username: string, password: string, appUrl: string, lang: Lang = 'it') {
+  if (lang === 'en') {
+    return `Hi ${stageName}! Welcome to Emotion Studio 🎧\n` +
+      `From today you'll find your tracks, progress, demos and sessions in your private area:\n${appUrl}\n\n` +
+      `Username: ${username}\nPassword: ${password}\n\n` +
+      `Keep this message. In your Profile you'll find how to install the app on your phone.`;
+  }
   return `Ciao ${stageName}! Benvenuto in Emotion Studio 🎧\n` +
     `Da oggi trovi brani, progressi, demo e sessioni nella tua area riservata:\n${appUrl}\n\n` +
     `Nome utente: ${username}\nPassword: ${password}\n\n` +
     `Conserva questo messaggio. Nel Profilo trovi come installare l'app sul telefono.`;
+}
+
+/** Messaggio con la nuova password, nella lingua dell'artista. */
+export function newPasswordMessage(stageName: string, username: string, password: string, appUrl: string, lang: Lang) {
+  return lang === 'en'
+    ? `Hi ${stageName}, here are your new Emotion Studio login details:\n${appUrl}\nUsername: ${username}\nPassword: ${password}`
+    : `Ciao ${stageName}, ecco i tuoi nuovi dati per Emotion Studio:\n${appUrl}\nNome utente: ${username}\nPassword: ${password}`;
 }
 
 /** Nuova password generata dallo studio (serve il service account nel Worker). */

@@ -464,6 +464,24 @@ Spariscono dall'app tutti i suoi dati e il suo account (serve la chiave del serv
 Se lasci la spunta, anche la sua cartella su Drive va nel Cestino (recuperabile per 30 giorni). Non si può annullare:
 per togliere solo l'accesso usa **Disattiva artista**.
 
+## Artisti che parlano inglese
+
+**Aggiorna il Worker** (Cloudflare → `emotion-api` → Modifica codice → incolla `worker/worker.js` → Deploy): serve per le notifiche in inglese.
+Poi `npm run deploy`.
+
+**Come si usa** – Nel modulo **Nuovo artista** (o nel profilo di un artista esistente) scegli **Lingua dell'app dell'artista: English**.
+Da quel momento lui vede tutta la sua app in inglese: home, brani, note, demo, pagamenti, sessioni, traguardi, notifiche.
+Anche il messaggio WhatsApp con nome utente e password esce in inglese. **Tu continui a vedere tutto in italiano**,
+anche il suo profilo e l'anteprima "Vedi come lo vede l'artista".
+
+- La schermata di accesso ha il selettore **Italiano / English** (all'inizio segue la lingua del telefono).
+- Le note sui brani e i titoli li scrivi tu: scrivili in inglese per lui.
+- **Impostazioni studio**: sotto le istruzioni di pagamento e il messaggio in home ci sono i campi *in inglese* (facoltativi).
+  Se li lasci vuoti, l'artista inglese vede il testo italiano.
+- Gli step predefiniti del percorso ("Provino ricevuto", "Mix"…) li traduce l'app; quelli che aggiungi a mano restano come li scrivi.
+- **Privacy Policy in inglese**: su iubenda attiva la lingua inglese della tua policy, poi incolla i due link in `src/lib/legal.ts`
+  (`PRIVACY_URL_EN` e `COOKIE_URL_EN`) e pubblica. Finché sono vuoti, l'artista vede la policy italiana con una breve spiegazione in inglese.
+
 ## Cosa arriva nelle prossime fasi
 
 - Idee future: riepilogo email per lo studio, promemoria sessione il giorno prima

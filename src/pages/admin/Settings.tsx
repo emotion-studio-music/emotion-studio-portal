@@ -40,11 +40,19 @@ export function Settings() {
           <label className="field"><span>Nota sotto i metodi di pagamento</span>
             <textarea className="textarea" value={form.paymentNote} onChange={(e) => set('paymentNote', e.target.value)} placeholder="Nella causale indica il tuo nome d’arte e il progetto." />
           </label>
+          <label className="field"><span>La stessa nota in inglese (facoltativa)</span>
+            <textarea className="textarea" value={form.paymentNoteEn} onChange={(e) => set('paymentNoteEn', e.target.value)} placeholder="Please write your artist name and the project in the payment reference." />
+            <small>La vedono gli artisti con l’app in inglese. Se la lasci vuota vedono quella italiana.</small>
+          </label>
         </section>
         <section className="card card-pad form">
           <h2 className="h2">Messaggio nella home degli artisti</h2>
           <label className="field"><span>Testo breve (facoltativo)</span>
             <textarea className="textarea" value={form.welcomeText} onChange={(e) => set('welcomeText', e.target.value)} placeholder="Studio chiuso dal 24 al 27 dicembre." />
+          </label>
+          <label className="field"><span>Lo stesso testo in inglese (facoltativo)</span>
+            <textarea className="textarea" value={form.welcomeTextEn} onChange={(e) => set('welcomeTextEn', e.target.value)} placeholder="The studio is closed from 24 to 27 December." />
+            <small>Lo vedono gli artisti con l’app in inglese. Se lo lasci vuoto vedono quello italiano.</small>
           </label>
         </section>
         <section className="card card-pad form">

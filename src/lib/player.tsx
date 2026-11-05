@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { mediaUrl } from './worker';
 import type { Version } from './music';
+import { t } from './i18n';
 
 /**
  * Lettore globale: vive sopra tutte le pagine, così la musica continua mentre si naviga
@@ -88,17 +89,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const v = st.versions[side];
         if (!st.track || !v || !a.getAttribute('src')) return;
         if (retried.current[side]) {
-          if (isActive()) setS((p) => ({ ...p, playing: false, error: 'Non riesco a riprodurre questa versione. Riprova tra poco.' }));
+          if (isActive()) setS((p) => ({ ...p, playing: false, error: t('Non riesco a riprodurre questa versione. Riprova tra poco.') }));
           return;
         }
         retried.current[side] = true;
-        const t = a.currentTime;
+        const at = a.currentTime;
         const wasActivePlaying = isActive() && st.playing;
         mediaUrl(st.track.artistId, v.id, false, v.kind ?? 'version').then((url) => {
           a.src = url;
-          a.currentTime = t;
+          a.currentTime = at;
           if (wasActivePlaying) void a.play();
-        }).catch(() => isActive() && setS((p) => ({ ...p, error: 'Connessione persa. Riprova.' })));
+        }).catch(() => isActive() && setS((p) => ({ ...p, error: t('Connessione persa. Riprova.') })));
       });
     });
     return () => {
@@ -159,7 +160,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // Su iPhone il browser può bloccare l'avvio automatico dopo il caricamento: resta in pausa, basta un tocco su play
       if (autoplay) await a.play().catch(() => undefined);
     } catch (e) {
-      setS((p) => ({ ...p, error: e instanceof Error ? e.message : 'Errore di riproduzione.' }));
+      setS((p) => ({ ...p, error: e instanceof Error ? t(e.message) : t('Errore di riproduzione.') }));
     }
   }, [setMediaSession]);
 
@@ -199,7 +200,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       b.src = url;
       retried.current.B = false;
     } catch (e) {
-      setS((p) => ({ ...p, error: e instanceof Error ? e.message : 'Errore di riproduzione.' }));
+      setS((p) => ({ ...p, error: e instanceof Error ? t(e.message) : t('Errore di riproduzione.') }));
     } finally {
       setS((p) => ({ ...p, loadingB: false }));
     }

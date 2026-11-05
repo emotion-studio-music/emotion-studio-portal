@@ -1,7 +1,13 @@
-const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+import { locale } from './i18n';
 
-/** 125000 → "€ 1.250,00" */
-export const eur = (cents: number) => fmt.format((cents || 0) / 100);
+const fmts: Record<string, Intl.NumberFormat> = {};
+
+/** 125000 → "1.250,00 €" (in inglese "€1,250.00") */
+export const eur = (cents: number) => {
+  const l = locale();
+  fmts[l] ??= new Intl.NumberFormat(l, { style: 'currency', currency: 'EUR' });
+  return fmts[l].format((cents || 0) / 100);
+};
 
 /** "1.250,50" / "1250.5" / "1250" → 125050 (centesimi). null se non valido. */
 export function parseEuro(input: string): number | null {

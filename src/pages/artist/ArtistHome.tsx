@@ -21,6 +21,7 @@ import { progressOf, progressColor } from '../../lib/steps';
 import { IconArrowLeft, IconCalendar } from '../../components/Icons';
 import type { NextSession } from '../../lib/types';
 import { dayMonth, isUpcoming, monthShort, parseAt, relativeDay, timeOf } from '../../lib/dates';
+import { getLang, locale, t } from '../../lib/i18n';
 
 function NextSessionCard({ session }: { session: NextSession }) {
   const d = parseAt(session.at);
@@ -31,7 +32,7 @@ function NextSessionCard({ session }: { session: NextSession }) {
       <div className="card session-card">
         <div className="session-icon"><IconCalendar /></div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span className="tiny muted" style={{ fontWeight: 500 }}>Prossima sessione</span>
+          <span className="tiny muted" style={{ fontWeight: 500 }}>{t('Prossima sessione')}</span>
           <span style={{ fontSize: 16, fontWeight: 600, whiteSpace: 'pre-line' }}>{session.note}</span>
         </div>
       </div>
@@ -45,12 +46,12 @@ function NextSessionCard({ session }: { session: NextSession }) {
         <strong>{d.getDate()}</strong>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <span className="tiny muted" style={{ fontWeight: 500 }}>Prossima sessione</span>
+        <span className="tiny muted" style={{ fontWeight: 500 }}>{t('Prossima sessione')}</span>
         <span style={{ fontSize: 16, fontWeight: 600 }}>
-          {relativeDay(d)} ore {timeOf(d)}{session.type ? ` · ${session.type}` : ''}
+          {t('{giorno} ore {ora}', { giorno: relativeDay(d), ora: timeOf(d) })}{session.type ? ` · ${t(session.type)}` : ''}
         </span>
         <span className="small muted">{dayMonth(d)}{session.note ? ` — ${session.note}` : ''}</span>
-        <AddToCalendar start={d} title={`Emotion Studio – ${session.type || 'Sessione'}`} />
+        <AddToCalendar start={d} title={`Emotion Studio – ${session.type ? t(session.type) : t('Sessione')}`} />
       </div>
     </div>
   );
@@ -92,9 +93,10 @@ export function ArtistHome({ artistId, preview }: Props) {
   const sessions = useSessions(artistId);
   const hours = sessions.reduce((sum, x) => sum + x.hours, 0);
   const lastSession = [...sessions].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const welcome = (getLang() === 'en' && settings.welcomeTextEn.trim()) || settings.welcomeText;
   const trackHref = (t: Track) => (preview ? `/admin/artisti/${artistId}/brani/${t.id}` : `/brano/${t.id}`);
   if (loading) return <Loading />;
-  if (!artist) return <div className="stack"><div className="empty">Profilo non trovato.</div></div>;
+  if (!artist) return <div className="stack"><div className="empty">{t('Profilo non trovato.')}</div></div>;
 
   return (
     <div className="artist-main">
@@ -109,7 +111,7 @@ export function ArtistHome({ artistId, preview }: Props) {
             : <img src="/logo.png" alt="Emotion Studio" />}
         </div>
         <div className="hero-bottom">
-          <span className="hero-kicker">Artista di Emotion Studio</span>
+          <span className="hero-kicker">{t('Artista di Emotion Studio')}</span>
           <h1 className="display hero-name">{artist.stageName}</h1>
           <SocialLinks links={artist.links} />
           {artist.genres.length > 0 && (
@@ -128,35 +130,35 @@ export function ArtistHome({ artistId, preview }: Props) {
           <UpcomingRelease key={p.id} p={p} days={Math.round((new Date(`${p.releaseDate}T12:00`).getTime() - new Date(`${today}T12:00`).getTime()) / 86_400_000)} />
         ))}
 
-        {settings.welcomeText && (
-          <p className="small muted" style={{ margin: 0, whiteSpace: 'pre-line' }}>{settings.welcomeText}</p>
+        {welcome && (
+          <p className="small muted" style={{ margin: 0, whiteSpace: 'pre-line' }}>{welcome}</p>
         )}
 
         <section className="section">
           <div className="section-head">
-            <h2 className="h2">Da ascoltare</h2>
-            {toListen.length > 0 && <span className="small muted">{toListen.length === 1 ? '1 brano ti aspetta' : `${toListen.length} brani ti aspettano`}</span>}
+            <h2 className="h2">{t('Da ascoltare')}</h2>
+            {toListen.length > 0 && <span className="small muted">{toListen.length === 1 ? t('1 brano ti aspetta') : t('{n} brani ti aspettano', { n: toListen.length })}</span>}
           </div>
           {toListen.length === 0 ? (
             <div className="empty">
-              <strong>Nessuna versione nuova</strong>
-              Quando lo studio carica un mix o un master lo trovi qui, pronto da ascoltare.
+              <strong>{t('Nessuna versione nuova')}</strong>
+              {t('Quando lo studio carica un mix o un master lo trovi qui, pronto da ascoltare.')}
             </div>
-          ) : toListen.map((t) => {
-            const p = projects.find((x) => x.id === t.projectId);
+          ) : toListen.map((tr) => {
+            const p = projects.find((x) => x.id === tr.projectId);
             return (
-              <Link key={t.id} to={trackHref(t)} className="card card-glow listen-card">
+              <Link key={tr.id} to={trackHref(tr)} className="card card-glow listen-card">
                 <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                  <Cover src={p?.cover ?? null} title={p?.title ?? t.title} />
+                  <Cover src={p?.cover ?? null} title={p?.title ?? tr.title} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                    <span style={{ fontSize: 17, fontWeight: 600 }}>{t.title}</span>
-                    <span className="small muted">{p?.title} · nuova versione</span>
-                    {(() => { const pr = progressOf(trackSteps(t, settings.stepTemplate)); return (
-                      <span className="tiny" style={{ fontWeight: 600, color: progressColor(pr.pct) }}>{pr.pct}% · {pr.complete ? pr.label : `Siamo a: ${pr.label}`}</span>
+                    <span style={{ fontSize: 17, fontWeight: 600 }}>{tr.title}</span>
+                    <span className="small muted">{p?.title} · {t('nuova versione')}</span>
+                    {(() => { const pr = progressOf(trackSteps(tr, settings.stepTemplate)); return (
+                      <span className="tiny" style={{ fontWeight: 600, color: progressColor(pr.pct) }}>{pr.pct}% · {pr.complete ? t(pr.label) : t('Siamo a: {step}', { step: t(pr.label) })}</span>
                     ); })()}
                   </div>
                 </div>
-                <span className="btn btn-primary btn-block">Ascolta</span>
+                <span className="btn btn-primary btn-block">{t('Ascolta')}</span>
               </Link>
             );
           })}
@@ -164,13 +166,13 @@ export function ArtistHome({ artistId, preview }: Props) {
 
         <section className="section">
           <div className="section-head">
-            <h2 className="h2">I miei progetti</h2>
-            {!preview && projects.length > 0 && <Link to="/progetti" className="small" style={{ fontWeight: 600 }}>Tutti e discografia</Link>}
+            <h2 className="h2">{t('I miei progetti')}</h2>
+            {!preview && projects.length > 0 && <Link to="/progetti" className="small" style={{ fontWeight: 600 }}>{t('Tutti e discografia')}</Link>}
           </div>
           {workingProjects.length === 0 ? (
             <div className="empty">
-              <strong>{projects.length ? 'Nessun lavoro in corso' : 'Ancora nessun progetto'}</strong>
-              Singoli ed EP compariranno qui con lo stato di ogni brano, da “Ricevuto” a “Pubblicato”.
+              <strong>{projects.length ? t('Nessun lavoro in corso') : t('Ancora nessun progetto')}</strong>
+              {t('Singoli ed EP compariranno qui con lo stato di ogni brano, da “Ricevuto” a “Pubblicato”.')}
             </div>
           ) : (
             <ProjectList artistId={artistId} projects={workingProjects.slice(0, 2)} tracks={workingTracks} trackHref={trackHref} />
@@ -180,20 +182,20 @@ export function ArtistHome({ artistId, preview }: Props) {
         <SharedTracks previewOf={preview ? artistId : undefined} />
 
         <section className="section">
-          <h2 className="h2">Da fare</h2>
+          <h2 className="h2">{t('Da fare')}</h2>
           {myTasks.length === 0 ? (
             <div className="empty">
-              <strong>Tutto in ordine</strong>
-              Qui vedrai le cose da preparare prima della prossima sessione.
+              <strong>{t('Tutto in ordine')}</strong>
+              {t('Qui vedrai le cose da preparare prima della prossima sessione.')}
             </div>
           ) : (
             <div className="card list">
-              {myTasks.map((t) => (
-                <label key={t.id} className="check task-row">
-                  <input type="checkbox" checked={t.done} disabled={preview} onChange={(e) => void setTaskDone(artistId, t.id, e.target.checked)} />
+              {myTasks.map((task) => (
+                <label key={task.id} className="check task-row">
+                  <input type="checkbox" checked={task.done} disabled={preview} onChange={(e) => void setTaskDone(artistId, task.id, e.target.checked)} />
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span style={{ fontWeight: 500, textDecoration: t.done ? 'line-through' : 'none', color: t.done ? 'var(--faint)' : 'var(--text)' }}>{t.title}</span>
-                    {t.dueDate && !t.done && <span className="tiny" style={{ fontWeight: 600, color: t.dueDate < todayKey() ? 'var(--danger)' : 'var(--accent-soft)' }}>Entro {fmtDay(t.dueDate)}</span>}
+                    <span style={{ fontWeight: 500, textDecoration: task.done ? 'line-through' : 'none', color: task.done ? 'var(--faint)' : 'var(--text)' }}>{task.title}</span>
+                    {task.dueDate && !task.done && <span className="tiny" style={{ fontWeight: 600, color: task.dueDate < todayKey() ? 'var(--danger)' : 'var(--accent-soft)' }}>{task.dueDate < todayKey() ? t('Scaduto il {data}', { data: fmtDay(task.dueDate) }) : t('Entro {data}', { data: fmtDay(task.dueDate) })}</span>}
                   </span>
                 </label>
               ))}
@@ -203,14 +205,14 @@ export function ArtistHome({ artistId, preview }: Props) {
 
         <div className="grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
           <Link to={preview ? '#' : '/pagamenti'} className="card card-pad stat-card">
-            <span className="tiny muted" style={{ fontWeight: 500 }}>Da saldare</span>
+            <span className="tiny muted" style={{ fontWeight: 500 }}>{t('Da saldare')}</span>
             <span className="money-mid">{eur(left)}</span>
-            <span className="tiny muted">{left > 0 ? 'Vedi come pagare' : 'Sei in pari ✓'}</span>
+            <span className="tiny muted">{left > 0 ? t('Vedi come pagare') : t('Sei in pari ✓')}</span>
           </Link>
           <Link to={preview ? '#' : '/sessioni'} className="card card-pad stat-card">
-            <span className="tiny muted" style={{ fontWeight: 500 }}>Ore in studio</span>
-            <span className="money-mid">{hours.toLocaleString('it-IT')} h</span>
-            <span className="tiny muted">{lastSession ? `Ultima: ${fmtDay(lastSession.date)}` : 'Nessuna sessione ancora'}</span>
+            <span className="tiny muted" style={{ fontWeight: 500 }}>{t('Ore in studio')}</span>
+            <span className="money-mid">{hours.toLocaleString(locale())} h</span>
+            <span className="tiny muted">{lastSession ? t('Ultima: {data}', { data: fmtDay(lastSession.date) }) : t('Nessuna sessione ancora')}</span>
           </Link>
         </div>
       </div>

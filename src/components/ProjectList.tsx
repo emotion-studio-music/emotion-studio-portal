@@ -7,6 +7,7 @@ import { trackSteps } from '../lib/music';
 import { progressOf } from '../lib/steps';
 import { Cover } from './Cover';
 import { CoverDownload } from './CoverDownload';
+import { locale, t } from '../lib/i18n';
 
 interface Props {
   artistId: string;
@@ -27,20 +28,20 @@ export function ProjectList({ artistId, projects, tracks, trackHref }: Props) {
               <Cover src={p.cover} title={p.title} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                 <span className="tiny muted" style={{ fontWeight: 600 }}>
-                  {typeLabel(p.type)} · {list.length === 1 ? '1 brano' : `${list.length} brani`}
+                  {t(typeLabel(p.type))} · {list.length === 1 ? t('1 brano') : t('{n} brani', { n: list.length })}
                 </span>
                 <span className="h2" style={{ overflowWrap: 'anywhere' }}>{p.title}</span>
-                {p.releaseDate && <span className="small muted">Uscita prevista {new Date(p.releaseDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span>}
+                {p.releaseDate && <span className="small muted">{t('Uscita prevista {data}', { data: new Date(p.releaseDate).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' }) })}</span>}
                 <div style={{ marginTop: 4 }}><CoverDownload artistId={artistId} project={p} small /></div>
               </div>
             </div>
-            {list.map((t) => (
-              <Link key={t.id} to={trackHref(t)} className="track-row">
-                <span style={{ fontSize: 15, fontWeight: 600 }}>{t.title}</span>
-                <TrackProgress progress={progressOf(trackSteps(t, settings.stepTemplate))} compact />
+            {list.map((track) => (
+              <Link key={track.id} to={trackHref(track)} className="track-row">
+                <span style={{ fontSize: 15, fontWeight: 600, overflowWrap: 'anywhere' }}>{track.title}</span>
+                <TrackProgress progress={progressOf(trackSteps(track, settings.stepTemplate))} compact />
               </Link>
             ))}
-            {list.length === 0 && <div className="track-row small muted">Nessun brano ancora.</div>}
+            {list.length === 0 && <div className="track-row small muted">{t('Nessun brano ancora.')}</div>}
           </div>
         );
       })}

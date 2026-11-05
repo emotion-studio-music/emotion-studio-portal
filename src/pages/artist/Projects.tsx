@@ -6,6 +6,7 @@ import { Discography } from '../../components/ReleaseCards';
 import { ProjectList } from '../../components/ProjectList';
 import { Loading } from '../../components/Loading';
 import { SharedTracks } from '../../components/SharedTracks';
+import { t } from '../../lib/i18n';
 
 export function Projects() {
   const { artistId } = useAuth();
@@ -27,10 +28,10 @@ export function Projects() {
   return (
     <div className="artist-main">
       <div className="stack" style={{ paddingTop: 'calc(28px + env(safe-area-inset-top, 0px))' }}>
-        <h1 className="display" style={{ fontSize: 44 }}>Progetti</h1>
-        <h2 className="h2">In lavorazione</h2>
+        <h1 className="display" style={{ fontSize: 44 }}>{t('Progetti')}</h1>
+        <h2 className="h2">{t('In lavorazione')}</h2>
         {workingProjects.length === 0
-          ? <div className="empty"><strong>{projects.length ? 'Nessun lavoro in corso' : 'Ancora nessun progetto'}</strong>Singoli ed EP in lavorazione compariranno qui con lo stato di ogni brano.</div>
+          ? <div className="empty"><strong>{projects.length ? t('Nessun lavoro in corso') : t('Ancora nessun progetto')}</strong>{t('Singoli ed EP in lavorazione compariranno qui con lo stato di ogni brano.')}</div>
           : <ProjectList artistId={artistId!} projects={workingProjects} tracks={working} trackHref={(t) => `/brano/${t.id}`} />}
         <Discography artistId={artistId!} items={disco} hrefOf={(t) => `/brano/${t.id}`} />
         <SharedTracks />

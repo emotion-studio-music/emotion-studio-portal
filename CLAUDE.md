@@ -11,6 +11,7 @@ Il proprietario non è uno sviluppatore: `README.md` è la sua guida passo-passo
 - Test delle regole Firestore (emulatore, serve Java), **dalla radice** (l'emulatore rifiuta regole fuori dalla cartella del progetto):
   `npx firebase emulators:exec --only firestore --project demo-emotion "cd tests/firestore-rules && npx vitest run"`.
   Ogni modifica a `firestore.rules` va verificata così; aggiungere i test in `tests/firestore-rules/rules.test.js`.
+- `npm run check:i18n` → segnala le frasi passate a `t()` senza traduzione in `src/lib/en.ts`.
 - `npm run deploy` → build + `firebase deploy` (pubblica insieme **hosting, `firestore.rules` e `firestore.indexes.json`**). Progetto Firebase: `emotion-studio`.
 - Il **Worker non ha wrangler**: si aggiorna copiando a mano `worker/worker.js` nell'editor di Cloudflare (`emotion-api`) → Deploy.
   Se modifichi il Worker, dillo esplicitamente all'utente.
@@ -65,6 +66,7 @@ Gli artisti entrano con **nome utente**: diventa l'email fittizia `nome@artisti.
 - **Sicurezza nelle `firestore.rules`**, non nel client: l'artista legge solo i propri dati; scrive solo campi precisi (note proprie, demo nuove, "Ho pagato", spunta task) con `onlyChanges([...])`/`keys().hasOnly(...)`. Ogni nuovo campo scritto dall'artista va aggiunto alle regole; ogni nuova query (soprattutto `collectionGroup`) può richiedere un indice in `firestore.indexes.json` e una regola `match /{path=**}/...`.
 - Link inseriti dagli utenti (social, store, pagamento) passano da `safeUrl`/`safeLinks` (solo http/https).
 - Mai segreti nel repo o in chat: `.env`, `service-account*.json` sono in `.gitignore`. La chiave VAPID privata sta solo nel Worker.
+- **Lingua**: l'admin vede sempre l'italiano; un artista vede la lingua del suo profilo (`artists.language`: `it` | `en`, impostata da `auth.tsx` con `setLang`). Ogni testo che può vedere un artista (pagine `artist/`, `TrackPage`, `DemoPage`, `Login`, `Consent`, `NoAccess` e i componenti che usano) va scritto in italiano dentro `t('…')` da `src/lib/i18n.ts`, con `{variabili}` per i valori, e la traduzione va aggiunta in `src/lib/en.ts`; poi `npm run check:i18n`. Date con `locale()`/`dates.ts`, importi con `eur()`. Non chiamare `t` una variabile locale (es. `tracks.map((t) => …)`): nasconde la funzione. Le notifiche del Worker hanno i testi in entrambe le lingue (`langOfArtist`).
 - Testi UI, messaggi d'errore e commenti nel codice in **italiano**, tono semplice e amichevole. Mantenere lo stile esistente: moduli piccoli, commenti brevi in italiano, niente nuove dipendenze senza motivo.
 - Attenzione a iPhone/Safari (autoplay bloccato, zoom sugli input, push solo da app installata iOS ≥ 16.4).
 - Quando una modifica richiede passi manuali (deploy Worker, nuove variabili, cron, console Firebase/Google), aggiornare `README.md` con istruzioni per non sviluppatori, nello stile delle sezioni esistenti.

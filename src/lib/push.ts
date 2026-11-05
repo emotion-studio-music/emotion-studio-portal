@@ -1,6 +1,7 @@
 import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { auth } from './firebase';
+import { getLang } from './i18n';
 
 const VAPID = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) ?? '';
 const BASE = (import.meta.env.VITE_WORKER_URL as string | undefined)?.replace(/\/$/, '') ?? '';
@@ -66,7 +67,7 @@ export async function testPush() {
   const token = await auth.currentUser?.getIdToken();
   const res = await fetch(`${BASE}/push/test`, {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription: sub.toJSON() }),
+    body: JSON.stringify({ subscription: sub.toJSON(), lang: getLang() }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Invio non riuscito.');

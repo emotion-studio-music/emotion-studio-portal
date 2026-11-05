@@ -3,11 +3,12 @@ import {
   addDoc, collection, collectionGroup, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, type DocumentData, type Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { locale } from './i18n';
 import { safeUrl } from './safeUrl';
 
 const ms = (t: unknown) => (t as Timestamp | undefined)?.toMillis?.() ?? Date.now();
 export const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-export const fmtDay = (key: string) => (key ? new Date(`${key}T12:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+export const fmtDay = (key: string) => (key ? new Date(`${key}T12:00`).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
 // ── Tipi ──
 

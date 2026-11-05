@@ -1,4 +1,5 @@
 import { DEFAULT_STEPS } from './steps';
+import type { Lang } from './i18n';
 
 export const DEFAULT_SERVICES = ['Registrazione', 'Produzione', 'Arrangiamento', 'Beat', 'Mix', 'Master', 'Consulenza'];
 
@@ -37,6 +38,7 @@ export interface Artist {
   phone: string;
   links: ArtistLinks;
   nextSession: NextSession;
+  language: Lang;          // lingua della sua app (lo studio vede sempre l'italiano)
   memberUids: string[];
   memberEmails: string[];
   active: boolean;
@@ -51,6 +53,8 @@ export interface StudioSettings {
   satispay: string;
   paymentNote: string;
   welcomeText: string;
+  welcomeTextEn: string;  // facoltativi: per gli artisti in inglese (vuoto = si usa l'italiano)
+  paymentNoteEn: string;
   stepTemplate: string[]; // percorso predefinito dei nuovi brani
   services: string[];     // servizi selezionabili nei preventivi
   priceStep: number;      // scatto della tariffa in euro (es. 50)
@@ -63,6 +67,8 @@ export const emptySettings: StudioSettings = {
   satispay: '',
   paymentNote: '',
   welcomeText: '',
+  welcomeTextEn: '',
+  paymentNoteEn: '',
   stepTemplate: DEFAULT_STEPS,
   services: DEFAULT_SERVICES,
   priceStep: 50,

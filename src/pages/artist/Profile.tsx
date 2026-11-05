@@ -2,12 +2,13 @@ import { focusStyle } from '../../lib/types';
 import { useState } from 'react';
 import { useAuth } from '../../lib/auth';
 import { useArtist } from '../../lib/data';
-import { COOKIE_URL, PRIVACY_URL } from '../../lib/legal';
+import { cookieUrl, privacyUrl } from '../../lib/legal';
 import { usernameOf } from '../../lib/username';
 import { useBadges } from '../../lib/useBadges';
 import { BadgeGrid } from '../../components/Celebration';
 import { NotificationsCard } from '../../components/NotificationsCard';
 import { Loading } from '../../components/Loading';
+import { t } from '../../lib/i18n';
 
 type InstallEvt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -19,8 +20,8 @@ function InstallGuide() {
   if (installed) {
     return (
       <section className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <h2 className="h2">App installata ✓</h2>
-        <p className="small muted" style={{ margin: 0 }}>Stai usando Emotion Studio come app dalla schermata Home.</p>
+        <h2 className="h2">{t('App installata ✓')}</h2>
+        <p className="small muted" style={{ margin: 0 }}>{t('Stai usando Emotion Studio come app dalla schermata Home.')}</p>
       </section>
     );
   }
@@ -33,26 +34,26 @@ function InstallGuide() {
   };
   return (
     <section className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <h2 className="h2">Installa l’app sul telefono</h2>
-      <p className="small muted" style={{ margin: 0 }}>Così la apri dalla home come una normale app, a schermo intero.</p>
-      {prompt && <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => void install()}>Installa ora</button>}
-      <div className="seg" role="group" aria-label="Sistema operativo">
+      <h2 className="h2">{t('Installa l’app sul telefono')}</h2>
+      <p className="small muted" style={{ margin: 0 }}>{t('Così la apri dalla home come una normale app, a schermo intero.')}</p>
+      {prompt && <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => void install()}>{t('Installa ora')}</button>}
+      <div className="seg" role="group" aria-label={t('Sistema operativo')}>
         <button type="button" aria-pressed={os === 'ios'} onClick={() => setOs('ios')}>iPhone</button>
         <button type="button" aria-pressed={os === 'android'} onClick={() => setOs('android')}>Android</button>
       </div>
       {os === 'ios' ? (
         <ol className="steps">
-          <li>Apri questa pagina con <strong>Safari</strong> (non funziona da altri browser).</li>
-          <li>Tocca il pulsante <strong>Condividi</strong> (il quadrato con la freccia in su).</li>
-          <li>Scorri e scegli <strong>Aggiungi alla schermata Home</strong>.</li>
-          <li>Tocca <strong>Aggiungi</strong>. Apri l’app dall’icona Emotion ed entra di nuovo con email e password.</li>
+          <li>{t('Apri questa pagina con')} <strong>Safari</strong> {t('(non funziona da altri browser).')}</li>
+          <li>{t('Tocca il pulsante')} <strong>{t('Condividi')}</strong> {t('(il quadrato con la freccia in su).')}</li>
+          <li>{t('Scorri e scegli')} <strong>{t('Aggiungi alla schermata Home')}</strong>.</li>
+          <li>{t('Tocca')} <strong>{t('Aggiungi')}</strong>. {t('Apri l’app dall’icona Emotion ed entra di nuovo con nome utente e password.')}</li>
         </ol>
       ) : (
         <ol className="steps">
-          <li>Apri questa pagina con <strong>Chrome</strong>.</li>
-          <li>Tocca il menu <strong>⋮</strong> in alto a destra.</li>
-          <li>Scegli <strong>Installa app</strong> oppure <strong>Aggiungi a schermata Home</strong>.</li>
-          <li>Conferma: trovi l’icona Emotion tra le tue app.</li>
+          <li>{t('Apri questa pagina con')} <strong>Chrome</strong>.</li>
+          <li>{t('Tocca il menu')} <strong>⋮</strong> {t('in alto a destra.')}</li>
+          <li>{t('Scegli')} <strong>{t('Installa app')}</strong> {t('oppure')} <strong>{t('Aggiungi a schermata Home')}</strong>.</li>
+          <li>{t('Conferma: trovi l’icona Emotion tra le tue app.')}</li>
         </ol>
       )}
     </section>
@@ -82,35 +83,35 @@ export function Profile() {
 
         <section className="card list">
           <div className="card-pad" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-            <span className="muted small">Nome utente</span><span className="small" style={{ overflowWrap: 'anywhere' }}>{usernameOf(user?.email ?? '')}</span>
+            <span className="muted small">{t('Nome utente')}</span><span className="small" style={{ overflowWrap: 'anywhere' }}>{usernameOf(user?.email ?? '')}</span>
           </div>
           {artist.phone && (
             <div className="card-pad" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-              <span className="muted small">Telefono</span><span className="small">{artist.phone}</span>
+              <span className="muted small">{t('Telefono')}</span><span className="small">{artist.phone}</span>
             </div>
           )}
           {links.map(([k, v]) => (
             <div key={k} className="card-pad" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <span className="muted small" style={{ textTransform: 'capitalize' }}>{k}</span>
-              <a className="small" href={v} target="_blank" rel="noreferrer" style={{ overflowWrap: 'anywhere', textAlign: 'right' }}>Apri</a>
+              <a className="small" href={v} target="_blank" rel="noreferrer" style={{ overflowWrap: 'anywhere', textAlign: 'right' }}>{t('Apri')}</a>
             </div>
           ))}
         </section>
-        <p className="tiny muted" style={{ margin: '-18px 0 0' }}>Per modificare questi dati scrivi allo studio.</p>
+        <p className="tiny muted" style={{ margin: '-18px 0 0' }}>{t('Per modificare questi dati scrivi allo studio.')}</p>
 
         <section className="section">
-          <h2 className="h2">I miei traguardi</h2>
+          <h2 className="h2">{t('I miei traguardi')}</h2>
           <BadgeGrid badges={badges} />
         </section>
 
         <NotificationsCard who="artist" />
         <InstallGuide />
-        <p className="small muted" style={{ margin: 0 }}>Hai perso la password? Scrivi allo studio: te ne prepara una nuova.</p>
+        <p className="small muted" style={{ margin: 0 }}>{t('Hai perso la password? Scrivi allo studio: te ne prepara una nuova.')}</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
-          <button className="btn btn-danger" onClick={() => void logout()}>Esci</button>
+          <button className="btn btn-danger" onClick={() => void logout()}>{t('Esci')}</button>
           <span className="tiny muted">
-            <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> · <a href={COOKIE_URL} target="_blank" rel="noreferrer">Cookie Policy</a>
+            <a href={privacyUrl()} target="_blank" rel="noreferrer">Privacy Policy</a> · <a href={cookieUrl()} target="_blank" rel="noreferrer">Cookie Policy</a>
           </span>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useTracks } from '../../lib/music';
 import { PAYMENT_KIND, PAY_METHODS, fmtDay, quoteSummary, reportPaid, todayKey, usePayments, useQuotes, type Payment, type Quote } from '../../lib/business';
 import { eur, paypalLink } from '../../lib/money';
 import { errorMessage } from '../../lib/errors';
+import { getLang, t } from '../../lib/i18n';
 
 export function Payments() {
   const { artistId } = useAuth();
@@ -22,17 +23,17 @@ export function Payments() {
   return (
     <div className="artist-main">
       <div className="stack" style={{ paddingTop: 'calc(28px + env(safe-area-inset-top, 0px))' }}>
-        <h1 className="display" style={{ fontSize: 44 }}>Pagamenti</h1>
+        <h1 className="display" style={{ fontSize: 44 }}>{t('Pagamenti')}</h1>
 
         <div className="card card-pad money-hero">
-          <span className="small muted">Da saldare in totale</span>
+          <span className="small muted">{t('Da saldare in totale')}</span>
           <span className="money-big">{eur(totalLeft)}</span>
-          {quotes.length === 0 && <span className="small muted">Qui troverai i preventivi dei tuoi progetti.</span>}
+          {quotes.length === 0 && <span className="small muted">{t('Qui troverai i preventivi dei tuoi progetti.')}</span>}
         </div>
 
         {open.length > 0 && (
           <section className="section">
-            <h2 className="h2">Da pagare ora</h2>
+            <h2 className="h2">{t('Da pagare ora')}</h2>
             {open.map((p) => (
               <PayCard key={p.id} p={p} quote={quoteOf(p)} artistName={artist?.stageName ?? ''} settings={settings} artistId={artistId!} />
             ))}
@@ -41,7 +42,7 @@ export function Payments() {
 
         {quotes.length > 0 && (
           <section className="section">
-            <h2 className="h2">I tuoi preventivi</h2>
+            <h2 className="h2">{t('I tuoi preventivi')}</h2>
             {quotes.sort((a, b) => b.createdMs - a.createdMs).map((q) => {
               const s = quoteSummary(q, payments);
               const pct = q.amountCents ? Math.round((s.paid / q.amountCents) * 100) : 0;
@@ -52,17 +53,17 @@ export function Payments() {
                     <span style={{ fontWeight: 700 }}>{eur(q.amountCents)}</span>
                   </div>
                   <div className="progress"><div style={{ width: `${pct}%` }} /></div>
-                  <span className="small muted">Pagato {eur(s.paid)} · {s.left > 0 ? `mancano ${eur(s.left)}` : 'saldato ✓'}</span>
+                  <span className="small muted">{t('Pagato {importo}', { importo: eur(s.paid) })} · {s.left > 0 ? t('mancano {importo}', { importo: eur(s.left) }) : t('saldato ✓')}</span>
                   {q.trackIds.length > 0 && (
                     <div className="quote-lines">
                       {q.trackIds.map((id) => (
-                        <span key={id} className="small"><span>{trackName(id) ?? 'Brano'}</span>{q.pricing === 'brano' && <span className="muted">{eur(q.unitCents)}</span>}</span>
+                        <span key={id} className="small"><span>{trackName(id) ?? t('Brano')}</span>{q.pricing === 'brano' && <span className="muted">{eur(q.unitCents)}</span>}</span>
                       ))}
                     </div>
                   )}
                   {q.note && <span className="small muted" style={{ whiteSpace: 'pre-line' }}>{q.note}</span>}
                   {s.payments.filter((p) => p.status === 'pagato').map((p) => (
-                    <span key={p.id} className="tiny muted">✓ {PAYMENT_KIND[p.kind]} {eur(p.amountCents)}{p.paidDate ? ` · ${fmtDay(p.paidDate)}` : ''}{p.invoiceNumber ? ` · fattura ${p.invoiceNumber}` : ''}</span>
+                    <span key={p.id} className="tiny muted">✓ {t(PAYMENT_KIND[p.kind])} {eur(p.amountCents)}{p.paidDate ? ` · ${fmtDay(p.paidDate)}` : ''}{p.invoiceNumber ? ` · ${t('fattura {numero}', { numero: p.invoiceNumber })}` : ''}</span>
                   ))}
                 </div>
               );
@@ -97,6 +98,7 @@ function PayCard({ p, quote, artistName, artistId, settings }: PayProps) {
   const [error, setError] = useState<string | null>(null);
   const causale = `Emotion Studio – ${artistName} – ${quote?.title ?? ''} – ${PAYMENT_KIND[p.kind]}`.replace(/ – $/, '');
   const late = p.dueDate && p.dueDate < todayKey();
+  const payNote = (getLang() === 'en' && settings.paymentNoteEn.trim()) || settings.paymentNote;
   const copy = async (label: string, text: string) => {
     try { await navigator.clipboard.writeText(text); setCopied(label); setTimeout(() => setCopied(null), 2000); } catch { setCopied(null); }
   };
@@ -105,23 +107,23 @@ function PayCard({ p, quote, artistName, artistId, settings }: PayProps) {
     <div className="card card-pad card-glow" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="section-head">
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontWeight: 600 }}>{PAYMENT_KIND[p.kind]} · {quote?.title}</span>
-          {p.dueDate && <span className="tiny" style={{ color: late ? 'var(--danger)' : 'var(--muted)', fontWeight: 600 }}>{late ? 'Scaduto il' : 'Entro il'} {fmtDay(p.dueDate)}</span>}
+          <span style={{ fontWeight: 600 }}>{t(PAYMENT_KIND[p.kind])} · {quote?.title}</span>
+          {p.dueDate && <span className="tiny" style={{ color: late ? 'var(--danger)' : 'var(--muted)', fontWeight: 600 }}>{late ? t('Scaduto il {data}', { data: fmtDay(p.dueDate) }) : t('Entro il {data}', { data: fmtDay(p.dueDate) })}</span>}
         </span>
         <span className="money-mid">{eur(p.amountCents)}</span>
       </div>
       {p.note && <span className="small muted">{p.note}</span>}
 
       {p.status === 'segnalato' ? (
-        <div className="alert alert-ok">Hai segnalato il pagamento ({p.reportedMethod}). Lo studio lo conferma appena lo riceve.</div>
+        <div className="alert alert-ok">{t('Hai segnalato il pagamento ({metodo}). Lo studio lo conferma appena lo riceve.', { metodo: t(p.reportedMethod ?? '') })}</div>
       ) : (
         <>
           <div className="field" style={{ gap: 10 }}>
-            <span>Come vuoi pagare?</span>
-            <div className="pay-methods" role="group" aria-label="Metodo di pagamento">
+            <span>{t('Come vuoi pagare?')}</span>
+            <div className="pay-methods" role="group" aria-label={t('Metodo di pagamento')}>
               {methods.map((m) => (
                 <button key={m} type="button" className="pay-method" aria-pressed={chosen === m} onClick={() => setChosen(m)}>
-                  {ICONS[m]}<span>{m}</span>
+                  {ICONS[m]}<span>{t(m)}</span>
                 </button>
               ))}
             </div>
@@ -129,15 +131,15 @@ function PayCard({ p, quote, artistName, artistId, settings }: PayProps) {
 
           {chosen === 'Bonifico' && (
             <div className="inset">
-              <span className="tiny muted">Intestato a</span>
+              <span className="tiny muted">{t('Intestato a')}</span>
               <span style={{ fontWeight: 600 }}>{settings.ibanHolder || 'Emotion Studio'}</span>
               <span className="tiny muted">IBAN</span>
               <span style={{ fontFamily: 'ui-monospace, Menlo, monospace', overflowWrap: 'anywhere' }}>{settings.iban}</span>
-              <span className="tiny muted">Causale</span>
+              <span className="tiny muted">{t('Causale')}</span>
               <span>{causale}</span>
               <div className="row-actions">
-                <button className="btn btn-sm" onClick={() => void copy('iban', settings.iban.replace(/\s/g, ''))}>{copied === 'iban' ? 'IBAN copiato ✓' : 'Copia IBAN'}</button>
-                <button className="btn btn-sm" onClick={() => void copy('causale', causale)}>{copied === 'causale' ? 'Causale copiata ✓' : 'Copia causale'}</button>
+                <button className="btn btn-sm" onClick={() => void copy('iban', settings.iban.replace(/\s/g, ''))}>{copied === 'iban' ? t('IBAN copiato ✓') : t('Copia IBAN')}</button>
+                <button className="btn btn-sm" onClick={() => void copy('causale', causale)}>{copied === 'causale' ? t('Causale copiata ✓') : t('Copia causale')}</button>
               </div>
             </div>
           )}
@@ -145,46 +147,46 @@ function PayCard({ p, quote, artistName, artistId, settings }: PayProps) {
             <div className="inset">
               {pp ? (
                 <>
-                  <a className="btn btn-primary btn-block" href={pp} target="_blank" rel="noreferrer">Paga {eur(p.amountCents)} con PayPal</a>
-                  <span className="tiny muted">Si apre PayPal con l’importo già inserito. Puoi usare il saldo PayPal o una carta collegata.</span>
+                  <a className="btn btn-primary btn-block" href={pp} target="_blank" rel="noreferrer">{t('Paga {importo} con PayPal', { importo: eur(p.amountCents) })}</a>
+                  <span className="tiny muted">{t('Si apre PayPal con l’importo già inserito. Puoi usare il saldo PayPal o una carta collegata.')}</span>
                 </>
               ) : (
                 <>
-                  <span className="tiny muted">Invia {eur(p.amountCents)} a</span>
+                  <span className="tiny muted">{t('Invia {importo} a', { importo: eur(p.amountCents) })}</span>
                   <span style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{settings.paypal}</span>
-                  <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => void copy('pp', settings.paypal)}>{copied === 'pp' ? 'Copiato ✓' : 'Copia indirizzo PayPal'}</button>
+                  <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => void copy('pp', settings.paypal)}>{copied === 'pp' ? t('Copiato ✓') : t('Copia indirizzo PayPal')}</button>
                 </>
               )}
             </div>
           )}
           {chosen === 'Carta' && p.cardLink && (
             <div className="inset">
-              <a className="btn btn-primary btn-block" href={p.cardLink} target="_blank" rel="noreferrer">Paga {eur(p.amountCents)} con carta</a>
-              <span className="tiny muted">Si apre la pagina di pagamento sicura del circuito dello studio.</span>
+              <a className="btn btn-primary btn-block" href={p.cardLink} target="_blank" rel="noreferrer">{t('Paga {importo} con carta', { importo: eur(p.amountCents) })}</a>
+              <span className="tiny muted">{t('Si apre la pagina di pagamento sicura del circuito dello studio.')}</span>
             </div>
           )}
           {chosen === 'Satispay' && (
             <div className="inset">
-              <span className="tiny muted">Invia {eur(p.amountCents)} con Satispay a</span>
+              <span className="tiny muted">{t('Invia {importo} con Satispay a', { importo: eur(p.amountCents) })}</span>
               <span style={{ fontWeight: 600 }}>{settings.satispay}</span>
-              <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => void copy('sp', settings.satispay)}>{copied === 'sp' ? 'Copiato ✓' : 'Copia'}</button>
+              <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => void copy('sp', settings.satispay)}>{copied === 'sp' ? t('Copiato ✓') : t('Copia')}</button>
             </div>
           )}
-          {settings.paymentNote && <span className="small muted" style={{ whiteSpace: 'pre-line' }}>{settings.paymentNote}</span>}
+          {payNote && <span className="small muted" style={{ whiteSpace: 'pre-line' }}>{payNote}</span>}
 
           {!confirming ? (
-            <button className="btn btn-block" onClick={() => setConfirming(true)}>Ho pagato</button>
+            <button className="btn btn-block" onClick={() => setConfirming(true)}>{t('Ho pagato')}</button>
           ) : (
             <div className="inset">
-              <span className="small" style={{ fontWeight: 600 }}>Come hai pagato?</span>
-              <div className="pick-wrap">
+              <span className="small" style={{ fontWeight: 600 }}>{t('Come hai pagato?')}</span>
+              <div className="pick-wrap" role="group" aria-label={t('Come hai pagato?')}>
                 {PAY_METHODS.map((m) => (
-                  <button key={m} type="button" className="pick" aria-pressed={(chosen ?? '') === m} onClick={() => setChosen(m)}>{m}</button>
+                  <button key={m} type="button" className="pick" aria-pressed={(chosen ?? '') === m} onClick={() => setChosen(m)}>{t(m)}</button>
                 ))}
               </div>
               <div className="row-actions">
-                <button className="btn btn-primary btn-sm" disabled={!chosen} onClick={() => void reportPaid(artistId, p.id, chosen!).catch((e) => setError(errorMessage(e)))}>Conferma</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)}>Annulla</button>
+                <button className="btn btn-primary btn-sm" disabled={!chosen} onClick={() => void reportPaid(artistId, p.id, chosen!).catch((e) => setError(errorMessage(e)))}>{t('Conferma')}</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)}>{t('Annulla')}</button>
               </div>
             </div>
           )}

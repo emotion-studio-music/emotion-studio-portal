@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { disablePush, enablePush, pushState, testPush, type PushState } from '../lib/push';
 import { errorMessage } from '../lib/errors';
+import { t } from '../lib/i18n';
 
 const TEXT: Record<PushState, string> = {
   'non-supportato': 'Questo browser non supporta le notifiche. Su computer usa Chrome, Edge o Safari aggiornati.',
@@ -24,21 +25,21 @@ export function NotificationsCard({ who }: { who: 'artist' | 'admin' }) {
     try { await fn(); setMsg({ ok: true, text: ok }); } catch (e) { setMsg({ ok: false, text: errorMessage(e) }); } finally { setBusy(false); refresh(); }
   };
   const list = who === 'artist'
-    ? 'nuove versioni da ascoltare, note dello studio, richieste di pagamento, cose da fare, brano uscito'
+    ? t('nuove versioni da ascoltare, note dello studio, richieste di pagamento, cose da fare, brano uscito')
     : 'note degli artisti, demo nuove, pagamenti segnalati';
 
   return (
     <section className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div className="section-head">
-        <h2 className="h2">Notifiche</h2>
-        {state === 'attivo' && <span className="badge badge-on">Attive</span>}
+        <h2 className="h2">{t('Notifiche')}</h2>
+        {state === 'attivo' && <span className="badge badge-on">{t('Attive')}</span>}
       </div>
-      <p className="small muted" style={{ margin: 0 }}>{state ? TEXT[state] : 'Controllo…'}</p>
-      {(state === 'spento' || state === 'attivo') && <p className="tiny muted" style={{ margin: 0 }}>Ti avvisiamo per: {list}.</p>}
+      <p className="small muted" style={{ margin: 0 }}>{state ? t(TEXT[state]) : t('Controllo…')}</p>
+      {(state === 'spento' || state === 'attivo') && <p className="tiny muted" style={{ margin: 0 }}>{t('Ti avvisiamo per: {elenco}.', { elenco: list })}</p>}
       <div className="row-actions">
-        {state === 'spento' && <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => void run(enablePush, 'Notifiche attivate. Prova a mandarne una!')}>Attiva notifiche</button>}
-        {state === 'attivo' && <button className="btn btn-sm" disabled={busy} onClick={() => void run(testPush, 'Notifica di prova inviata: dovrebbe arrivare tra pochi secondi.')}>Invia una prova</button>}
-        {state === 'attivo' && <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void run(disablePush, 'Notifiche disattivate su questo dispositivo.')}>Disattiva</button>}
+        {state === 'spento' && <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => void run(enablePush, t('Notifiche attivate. Prova a mandarne una!'))}>{t('Attiva notifiche')}</button>}
+        {state === 'attivo' && <button className="btn btn-sm" disabled={busy} onClick={() => void run(testPush, t('Notifica di prova inviata: dovrebbe arrivare tra pochi secondi.'))}>{t('Invia una prova')}</button>}
+        {state === 'attivo' && <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void run(disablePush, t('Notifiche disattivate su questo dispositivo.'))}>{t('Disattiva')}</button>}
       </div>
       {msg && <div className={`alert ${msg.ok ? 'alert-ok' : 'alert-error'}`} role="status">{msg.text}</div>}
     </section>

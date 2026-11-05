@@ -14,6 +14,7 @@ import { Comments } from '../components/Comments';
 import { Stars } from '../components/Stars';
 import { Loading } from '../components/Loading';
 import { IconArrowLeft } from '../components/Icons';
+import { locale, t } from '../lib/i18n';
 
 const DEMO_COLOR = '#C9703A';
 
@@ -52,7 +53,7 @@ export function DemoPage({ artistId, demoId, backTo, backLabel, href }: Props) {
   [comments]);
 
   if (loading) return <Loading />;
-  if (!demo || !version || !info) return <div className="stack"><div className="empty">Demo non trovata. <Link to={backTo}>Torna indietro</Link></div></div>;
+  if (!demo || !version || !info) return <div className="stack"><div className="empty">{t('Demo non trovata.')} <Link to={backTo}>{t('Torna indietro')}</Link></div></div>;
 
   const playHere = (at?: number) => {
     if (loadedHere) { if (at !== undefined) pl.seek(at, true); else pl.toggle(); return; }
@@ -71,24 +72,24 @@ export function DemoPage({ artistId, demoId, backTo, backLabel, href }: Props) {
   return (
     <div className="artist-main" style={{ position: 'relative', isolation: 'isolate' }}>
       <div className="track-hero" style={{ ['--glow-color' as string]: `${DEMO_COLOR}55` }}>
-        <Link to={backTo} className="back-link"><IconArrowLeft width={18} height={18} /> {backLabel}</Link>
+        <Link to={backTo} className="back-link"><IconArrowLeft width={18} height={18} /> {t(backLabel)}</Link>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="small muted">Demo{isAdmin && artist ? ` di ${artist.stageName}` : ''} · {new Date(demo.createdMs).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}{demo.source === 'registrazione' ? ' · registrata in app' : ''}</span>
+          <span className="small muted">{isAdmin && artist ? `Demo di ${artist.stageName}` : t('Demo')} · {new Date(demo.createdMs).toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}{demo.source === 'registrazione' ? ` · ${t('registrata in app')}` : ''}</span>
           <h1 className="display" style={{ fontSize: 'clamp(34px, 10vw, 48px)', overflowWrap: 'anywhere' }}>{demo.title}</h1>
-          {!isAdmin && <span className={`badge${demo.status === 'selezionata' ? ' badge-star' : ''}`} style={{ alignSelf: 'flex-start' }}>{artistStatusLabel(demo.status)}</span>}
+          {!isAdmin && <span className={`badge${demo.status === 'selezionata' ? ' badge-star' : ''}`} style={{ alignSelf: 'flex-start' }}>{t(artistStatusLabel(demo.status))}</span>}
         </div>
       </div>
 
       <div className="stack" style={{ paddingTop: 22 }}>
         <section className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {!loadedHere && pl.track && (
-            <div className="alert" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>Sta suonando “{pl.track.title}”. Premi play per ascoltare questa demo.</div>
+            <div className="alert" style={{ background: 'var(--bg)', border: '1px solid var(--line)' }}>{t('Sta suonando “{titolo}”. Premi play per ascoltare questa demo.', { titolo: pl.track.title })}</div>
           )}
           <Waveform versionKey={`${demo.id}-${loadedHere ? 'on' : 'x'}`} media={loadedHere ? pl.audio('A') : dummy}
             peaks={demo.peaks} duration={demo.duration} color={DEMO_COLOR} markers={markers} loop={null} selectingLoop={false}
             onLoop={() => undefined} onMarker={(_, at) => playHere(at)} onSeek={(t) => { if (!loadedHere) playHere(t); }} />
           <div className="player-bar">
-            <button className="play-btn" onClick={() => playHere()} aria-label={playing ? 'Pausa' : 'Riproduci'} style={{ background: DEMO_COLOR }}>
+            <button className="play-btn" onClick={() => playHere()} aria-label={playing ? t('Pausa') : t('Riproduci')} style={{ background: DEMO_COLOR }}>
               {playing
                 ? <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
                 : <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" /></svg>}
@@ -98,13 +99,13 @@ export function DemoPage({ artistId, demoId, backTo, backLabel, href }: Props) {
           {loadedHere && pl.error && <div className="alert alert-error" role="alert">{pl.error}</div>}
           {demo.note && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="tiny muted" style={{ fontWeight: 600 }}>{isAdmin ? 'Nota dell’artista' : 'La tua nota'}</span>
+              <span className="tiny muted" style={{ fontWeight: 600 }}>{isAdmin ? 'Nota dell’artista' : t('La tua nota')}</span>
               <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{demo.note}</p>
             </div>
           )}
           {error && <div className="alert alert-error" role="alert">{error}</div>}
           <div className="row-actions">
-            <button className="btn btn-sm" onClick={() => void run(mediaUrl(artistId, demo.id, true, 'demo').then((u) => { window.location.href = u; }))}>Scarica</button>
+            <button className="btn btn-sm" onClick={() => void run(mediaUrl(artistId, demo.id, true, 'demo').then((u) => { window.location.href = u; }))}>{t('Scarica')}</button>
             {!isAdmin && demo.status === 'nuova' && (
               <DeleteButton onDelete={() => run(deleteDemo(artistId, demo.id))} />
             )}
@@ -114,9 +115,9 @@ export function DemoPage({ artistId, demoId, backTo, backLabel, href }: Props) {
         {isAdmin && <AdminDemoTools artistId={artistId} demoId={demo.id} rating={demo.rating} status={demo.status} trackId={demo.trackId} title={demo.title} run={run} />}
 
         {user && (
-          <Comments artistId={artistId} trackId={`demo:${demo.id}`} versionId={demo.id} versionLabel="questa demo"
+          <Comments artistId={artistId} trackId={`demo:${demo.id}`} versionId={demo.id} versionLabel={t('questa demo')}
             comments={comments} time={time} uid={user.uid} role={isAdmin ? 'admin' : 'artist'}
-            authorName={isAdmin ? 'Emotion Studio' : (artist?.stageName ?? 'Artista')} onSeek={(t) => playHere(t)} highlight={null} />
+            authorName={isAdmin ? 'Emotion Studio' : (artist?.stageName ?? t('Artista'))} onSeek={(t) => playHere(t)} highlight={null} />
         )}
       </div>
     </div>
@@ -127,8 +128,8 @@ function DeleteButton({ onDelete }: { onDelete: () => Promise<unknown> }) {
   const navigate = useNavigate();
   return (
     <button className="btn btn-ghost btn-sm" onClick={() => {
-      if (confirm('Ritirare questa demo? Lo studio non la vedrà più.')) void onDelete().then(() => navigate('/carica'));
-    }}>Ritira la demo</button>
+      if (confirm(t('Ritirare questa demo? Lo studio non la vedrà più.'))) void onDelete().then(() => navigate('/carica'));
+    }}>{t('Ritira la demo')}</button>
   );
 }
 

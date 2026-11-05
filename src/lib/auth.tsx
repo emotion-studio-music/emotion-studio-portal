@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, limit, query, setDoc, where } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { deviceLang, setLang } from './i18n';
 
 export type Role = 'admin' | 'artist' | 'none';
 
@@ -23,7 +24,7 @@ async function resolveRole(user: User): Promise<{ role: Role; artistId: string |
     getDoc(doc(db, 'users', user.uid)),
   ]);
   const privacyAccepted = Boolean(userSnap.exists() && userSnap.data().privacyAcceptedAt);
-  if (adminSnap.exists()) return { role: 'admin', artistId: null, privacyAccepted: true };
+  if (adminSnap.exists()) { setLang('it'); return { role: 'admin', artistId: null, privacyAccepted: true }; }
   const q = query(
     collection(db, 'artists'),
     where('memberUids', 'array-contains', user.uid),
@@ -31,8 +32,10 @@ async function resolveRole(user: User): Promise<{ role: Role; artistId: string |
     limit(1),
   );
   const res = await getDocs(q);
-  if (res.empty) return { role: 'none', artistId: null, privacyAccepted };
+  if (res.empty) { setLang(deviceLang()); return { role: 'none', artistId: null, privacyAccepted }; }
   const artistId = res.docs[0].id;
+  // l'app dell'artista parla la lingua scelta dallo studio nel suo profilo
+  setLang(res.docs[0].data().language === 'en' ? 'en' : 'it');
   // Le regole di sicurezza leggono qui a quale artista appartiene l'utente (impostazioni, feat).
   if (userSnap.data()?.artistId !== artistId) {
     await setDoc(doc(db, 'users', user.uid), { artistId }, { merge: true }).catch(() => undefined);
@@ -51,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const load = async (user: User | null) => {
     if (!user) {
+      setLang(deviceLang());
       setState({ loading: false, user: null, role: 'none', artistId: null, privacyAccepted: false });
       return;
     }
