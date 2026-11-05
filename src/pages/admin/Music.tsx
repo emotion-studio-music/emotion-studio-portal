@@ -7,9 +7,9 @@ import { SPOTLIGHT_DAYS, dayKey, releaseInfo } from '../../lib/release';
 import { StepsEditor } from '../../components/StepsEditor';
 import { TrackProgress } from '../../components/TrackProgress';
 import {
-  PROJECT_TYPES, addVersion, createProject, createTrack, deleteProject, deleteTrack, deleteVersion, moveInOrder,
+  PROJECT_TYPES, addVersion, replaceVersionFile, createProject, createTrack, deleteProject, deleteTrack, deleteVersion, moveInOrder,
   setCollaborators, trackSteps, updateProject, updateTrack, updateVersion, useFeatTracks, useProjects, useTracks, useVersions,
-  type Project, type ProjectType, type Track,
+  type Project, type ProjectType, type Track, type Version,
 } from '../../lib/music';
 import { analyzeAudio, formatTime } from '../../lib/audio';
 import { compressImage } from '../../lib/image';
@@ -340,7 +340,7 @@ function TrackAdmin({ artist, project, track, template, openNotes, first, last, 
             <span className="small">Da ascoltare</span>
           </label>
           <Link className="btn btn-sm" to={`/admin/artisti/${artist.id}/brani/${track.id}`}>Ascolta</Link>
-          {!open && <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>Carica MP3</button>}
+          {!open && <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>{track.currentVersionId ? 'Carica versione aggiornata' : 'Carica MP3'}</button>}
           <button className="btn btn-sm" onClick={() => setOpen((v) => !v)} aria-expanded={open}>{open ? 'Chiudi' : 'Versioni'}</button>
         </div>
       </div>
@@ -411,7 +411,8 @@ function TrackAdmin({ artist, project, track, template, openNotes, first, last, 
               </div>
             </div>
           ))}
-          <UploadVersion artist={artist} project={project} track={track} count={versions.length} />
+          <UploadVersion artist={artist} project={project} track={track} count={versions.length}
+            current={versions.find((v) => v.id === track.currentVersionId) ?? versions[0]} />
           <button className="btn btn-danger btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => {
             if (confirm(`Eliminare il brano "${track.title}" e tutte le sue versioni dall'app? I file restano su Drive.`)) void run(deleteTrack(artist.id, track.id));
           }}>Elimina brano</button>
@@ -443,8 +444,13 @@ const STEP_TEXT: Record<Step, string> = {
   upload: 'Carico su Drive…', salvataggio: 'Salvo la versione…', fatto: 'Versione caricata: l’artista la trova in “Da ascoltare”.',
 };
 
-function UploadVersion({ artist, project, track, count }: { artist: Artist; project: Project; track: Track; count: number }) {
+interface UploadVersionProps { artist: Artist; project: Project; track: Track; count: number; current: Version | undefined }
+
+function UploadVersion({ artist, project, track, count, current }: UploadVersionProps) {
   const suggested = `Mix v${count + 1}`;
+  // "sostituisci": stesso nome e stesse note, solo il file nuovo · "nuova": versione in più, confrontabile con A/B
+  const [mode, setMode] = useState<'sostituisci' | 'nuova'>('sostituisci');
+  const replacing = !!current && mode === 'sostituisci';
   const [file, setFile] = useState<File | null>(null);
   const [label, setLabel] = useState('');
   const [notes, setNotes] = useState('');
@@ -468,11 +474,15 @@ function UploadVersion({ artist, project, track, count }: { artist: Artist; proj
       setStep('upload');
       const uploaded = await uploadToDrive(file, folder, setProgress);
       setStep('salvataggio');
-      await addVersion(artist.id, {
-        trackId: track.id, projectId: project.id, label: label.trim() || suggested, mp3FileId: uploaded.id,
-        fileName: file.name, size: file.size, peaks, duration, downloadEnabled, notes: notes.trim(),
-        collaboratorUids: track.collaboratorUids,
-      });
+      if (replacing) {
+        await replaceVersionFile(artist.id, current, { mp3FileId: uploaded.id, fileName: file.name, size: file.size, peaks, duration });
+      } else {
+        await addVersion(artist.id, {
+          trackId: track.id, projectId: project.id, label: label.trim() || suggested, mp3FileId: uploaded.id,
+          fileName: file.name, size: file.size, peaks, duration, downloadEnabled, notes: notes.trim(),
+          collaboratorUids: track.collaboratorUids,
+        });
+      }
       setStep('fatto'); setFile(null); setLabel(''); setNotes('');
     } catch (err) {
       setError(errorMessage(err)); setStep('idle');
@@ -481,10 +491,23 @@ function UploadVersion({ artist, project, track, count }: { artist: Artist; proj
 
   return (
     <form className="form" onSubmit={submit} style={{ gap: 12, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
-      <span style={{ fontWeight: 600 }}>Carica una nuova versione</span>
+      <span style={{ fontWeight: 600 }}>{current ? 'Carica la versione aggiornata' : 'Carica la prima versione'}</span>
+      {current && (
+        <>
+          <div className="seg" role="group" aria-label="Come caricarla" style={{ alignSelf: 'flex-start', flexWrap: 'wrap' }}>
+            <button type="button" aria-pressed={mode === 'sostituisci'} onClick={() => setMode('sostituisci')} disabled={busy}>Sostituisci “{current.label}”</button>
+            <button type="button" aria-pressed={mode === 'nuova'} onClick={() => setMode('nuova')} disabled={busy}>Aggiungi come {suggested}</button>
+          </div>
+          <span className="tiny muted">
+            {replacing
+              ? `Il file di “${current.label}” viene sostituito: stesso nome, le note restano. All’artista arriva “Da ascoltare”. Il file vecchio resta su Drive.`
+              : 'Resta anche la versione precedente: l’artista può confrontarle con A/B.'}
+          </span>
+        </>
+      )}
       <input className="input" type="file" accept=".mp3,audio/mpeg" disabled={busy}
         onChange={(e) => { setFile(e.target.files?.[0] ?? null); setStep('idle'); }} aria-label="File MP3" />
-      <div className="grid-2">
+      {!replacing && <div className="grid-2">
         <label className="field"><span>Nome versione</span>
           <input className="input" value={label} placeholder={suggested} onChange={(e) => setLabel(e.target.value)} disabled={busy} />
         </label>
@@ -492,11 +515,11 @@ function UploadVersion({ artist, project, track, count }: { artist: Artist; proj
           <input type="checkbox" checked={downloadEnabled} onChange={(e) => setDownloadEnabled(e.target.checked)} disabled={busy} />
           <span className="small">Permetti all’artista di scaricare l’MP3</span>
         </label>
-      </div>
-      <label className="field"><span>Note per l’artista</span>
+      </div>}
+      {!replacing && <label className="field"><span>Note per l’artista</span>
         <textarea className="textarea" style={{ minHeight: 70 }} value={notes} onChange={(e) => setNotes(e.target.value)} disabled={busy}
           placeholder="Voce alzata nel ritornello, basso più pulito." />
-      </label>
+      </label>}
       {step !== 'idle' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} role="status">
           <span className="small">{STEP_TEXT[step]}{step === 'upload' ? ` ${Math.round(progress * 100)}%` : ''}</span>
@@ -504,7 +527,7 @@ function UploadVersion({ artist, project, track, count }: { artist: Artist; proj
         </div>
       )}
       {error && <div className="alert alert-error" role="alert">{error}</div>}
-      <button className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }} disabled={!file || busy}>Carica versione</button>
+      <button className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }} disabled={!file || busy}>{replacing ? 'Sostituisci il file' : 'Carica versione'}</button>
     </form>
   );
 }

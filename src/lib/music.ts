@@ -252,6 +252,16 @@ export async function addVersion(artistId: string, data: Omit<Version, 'id' | 'c
   return ref.id;
 }
 
+/**
+ * Sostituisce l'MP3 di una versione con quello sistemato: stesso nome, stesse note, file nuovo.
+ * createdAt torna ad "adesso", così la versione risale in cima e all'artista arriva la notifica.
+ * Il file vecchio resta su Drive.
+ */
+export async function replaceVersionFile(artistId: string, version: Version, file: Pick<Version, 'mp3FileId' | 'fileName' | 'size' | 'peaks' | 'duration'>) {
+  await updateDoc(doc(db, 'artists', artistId, 'versions', version.id), { ...file, createdAt: serverTimestamp(), replacedAt: serverTimestamp() });
+  await updateTrack(artistId, version.trackId, { currentVersionId: version.id, awaitingReview: true });
+}
+
 export function updateVersion(artistId: string, id: string, data: Partial<Pick<Version, 'label' | 'notes' | 'downloadEnabled'>>) {
   return updateDoc(doc(db, 'artists', artistId, 'versions', id), data);
 }

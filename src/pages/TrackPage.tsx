@@ -69,11 +69,12 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href, shared }
   useEffect(() => {
     if (!info || !selectedVersion) return;
     if (loadedHere) {
-      if (pl.versions.A?.id !== selectedVersion.id) void pl.open(info, selectedVersion, pl.playing);
+      const a = pl.versions.A;
+      if (a?.id !== selectedVersion.id || a.mp3FileId !== selectedVersion.mp3FileId) void pl.open(info, selectedVersion, pl.playing);
     } else if (!pl.playing) {
       void pl.open(info, selectedVersion, false);
     }
-  }, [selectedVersion?.id, info?.trackId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedVersion?.id, selectedVersion?.mp3FileId, info?.trackId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // colore e copertina aggiornati nel mini player
   useEffect(() => {

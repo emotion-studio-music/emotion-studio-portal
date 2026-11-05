@@ -138,7 +138,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const open = useCallback(async (track: PlayerTrack, version: Version, autoplay = false) => {
     const st = ref.current;
-    if (st.track?.trackId === track.trackId && st.versions[st.active]?.id === version.id) {
+    const same = st.versions[st.active];
+    // stessa versione e stesso file (se l'MP3 è stato sostituito si ricarica)
+    if (st.track?.trackId === track.trackId && same?.id === version.id && same.mp3FileId === version.mp3FileId) {
       setS((p) => ({ ...p, track: { ...p.track!, ...track } }));
       if (autoplay) void activeEl().play();
       return;
