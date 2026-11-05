@@ -692,7 +692,8 @@ async function notifyRun(env) {
     if (v.label === 'Demo') continue; // creata da "Porta in studio"
     const tr = await track(v.artistId, v.trackId);
     for (const x of await artistTargets(v.artistId, v.trackId, (feat) => (feat ? `/feat/${v.artistId}/${v.trackId}` : `/brano/${v.trackId}`))) {
-      add(v.createdAt, [x.uid], { title: `Nuova versione da ascoltare 🎧`, body: `${tr.title || 'Il tuo brano'} · ${v.label || ''}`, url: x.url });
+      const title = v.replacedAt ? 'Versione aggiornata da ascoltare 🎧' : v.first ? 'Nuovo brano da ascoltare 🎧' : 'Nuova versione da ascoltare 🎧';
+      add(v.createdAt, [x.uid], { title, body: `${tr.title || 'Il tuo brano'} · ${v.label || ''}`, url: x.url });
     }
   }
   for (const p of await fsSince(env, 'payments', 'createdAt', since)) {
@@ -728,7 +729,7 @@ async function notifyRun(env) {
   for (const ev of events) {
     if (!subsCache.has(ev.uid)) subsCache.set(ev.uid, await fsList(env, `users/${ev.uid}/push`));
     const subs = subsCache.get(ev.uid);
-    if (sent + subs.length > 12) { lastRun = ev.at - 1; break; }
+    if (sent > 0 && sent + subs.length > 12) { lastRun = ev.at - 1; break; }
     for (const s of subs) {
       if (!isPushService(s.endpoint || '')) continue;
       const status = await sendPush(env, { endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth }, ev.msg).catch(() => 0);
@@ -844,6 +845,62 @@ async function trashDemo(req, env) {
   return { ok: true, trashed: true };
 }
 
+/** Lo studio sposta un file dell'app nel Cestino di Drive (si svuota da solo dopo 30 giorni). Mai le cartelle. */
+async function trashFile(req, env) {
+  await requireAdmin(req, env);
+  const { fileId } = await req.json();
+  if (!safeId(fileId)) throw new HttpError(400, 'File non valido.');
+  const meta = await driveFetch(env, `${DRIVE}/files/${fileId}?fields=mimeType,trashed`);
+  if (meta.status === 404) return { ok: true, trashed: false };
+  if (!meta.ok) throw new HttpError(502, 'Drive non raggiungibile.');
+  const m = await meta.json();
+  if (m.mimeType === FOLDER) throw new HttpError(400, 'Le cartelle non si eliminano da qui.');
+  if (m.trashed) return { ok: true, trashed: true };
+  const res = await driveFetch(env, `${DRIVE}/files/${fileId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }),
+  });
+  if (!res.ok && res.status !== 404) throw new HttpError(502, 'Non riesco a spostare il file nel Cestino di Drive.');
+  return { ok: true, trashed: true };
+}
+
+/** Eliminazione di un artista: la sua cartella su Drive (con progetti, versioni e demo) va nel Cestino. */
+async function trashArtistFolder(req, env) {
+  await requireAdmin(req, env);
+  const { artistId } = await req.json();
+  if (!safeId(artistId)) throw new HttpError(400, 'Artista non valido.');
+  const folderId = await findByProp(env, 'emotionArtist', artistId);
+  if (!folderId) return { ok: true, trashed: false };
+  const res = await driveFetch(env, `${DRIVE}/files/${folderId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }),
+  });
+  if (!res.ok) throw new HttpError(502, 'Non riesco a spostare la cartella dell’artista nel Cestino di Drive.');
+  return { ok: true, trashed: true };
+}
+
+/** Eliminazione di un artista: cancella il suo account, le iscrizioni alle notifiche e users/{uid}. Mai un admin. */
+async function deleteUser(req, env) {
+  await requireAdmin(req, env);
+  if (!env.FIREBASE_SA_JSON) throw new HttpError(501, 'Per eliminare l’account serve la chiave del service account nel Worker (vedi README, Fase F).');
+  const { uid } = await req.json();
+  if (!safeId(uid)) throw new HttpError(400, 'Utente non valido.');
+  const adm = await fsAdmin(env, `${fsBase(env)}/admins/${uid}`);
+  if (adm.ok) throw new HttpError(403, 'Questo account è dello studio: non si elimina da qui.');
+  if (adm.status !== 404) throw new HttpError(502, 'Database non raggiungibile. Riprova.');
+  for (const s of await fsList(env, `users/${uid}/push`)) await fsAdmin(env, `https://firestore.googleapis.com/v1/${s.name}`, { method: 'DELETE' });
+  await fsAdmin(env, `${fsBase(env)}/users/${uid}`, { method: 'DELETE' });
+  const token = await getServiceToken(env);
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/accounts:delete`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ localId: uid }),
+  });
+  if (!res.ok) {
+    const code = (await res.json().catch(() => ({})))?.error?.message || '';
+    if (!code.includes('USER_NOT_FOUND')) throw new HttpError(502, 'Non riesco a eliminare l’account.');
+  }
+  return { ok: true };
+}
+
 async function health(env) {
   const res = await driveFetch(env, `${DRIVE}/about?fields=storageQuota`);
   if (!res.ok) throw new HttpError(502, 'Drive non raggiungibile.');
@@ -877,6 +934,9 @@ export default {
       if (req.method === 'POST' && pathname === '/admin/update-user') return json(await updateUser(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/create-user') return json(await createUser(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/admin/demo-trash') return json(await trashDemo(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/admin/file-trash') return json(await trashFile(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/admin/artist-folder-trash') return json(await trashArtistFolder(req, env), 200, req, env);
+      if (req.method === 'POST' && pathname === '/admin/delete-user') return json(await deleteUser(req, env), 200, req, env);
       if (req.method === 'POST' && pathname === '/artist/upload') return json(await artistUpload(req, env), 200, req, env);
       if (req.method === 'PUT' && pathname === '/artist/upload-proxy') return json(await artistUploadProxy(req, env), 200, req, env);
       return json({ error: 'Indirizzo non trovato.' }, 404, req, env);

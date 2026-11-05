@@ -47,7 +47,7 @@ export function Today() {
       )}
 
       {t.notes.length > 0 && (
-        <Block title="Note degli artisti da risolvere">
+        <Block title="Note degli artisti da risolvere" hint="Apri la nota: nella pagina del brano trovi “Carica versione aggiornata”.">
           {t.notes.slice(0, 20).map((c) => {
             const demo = c.trackId?.startsWith('demo:');
             const href = demo ? `/admin/artisti/${c.artistId}/demo/${c.trackId.slice(5)}` : `/admin/artisti/${c.artistId}/brani/${c.trackId}`;

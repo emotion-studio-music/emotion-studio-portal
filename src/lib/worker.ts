@@ -109,6 +109,21 @@ export function trashDemoFile(artistId: string, demoId: string) {
   return call<{ ok: boolean; trashed: boolean }>('/admin/demo-trash', { artistId, demoId });
 }
 
+/** Sposta un file dell'app nel Cestino di Drive (si svuota da solo dopo 30 giorni). Solo studio. */
+export function trashDriveFile(fileId: string) {
+  return call<{ ok: boolean; trashed: boolean }>('/admin/file-trash', { fileId });
+}
+
+/** Sposta nel Cestino di Drive la cartella dell'artista (progetti, versioni, demo). Solo studio. */
+export function trashArtistFolder(artistId: string) {
+  return call<{ ok: boolean; trashed: boolean }>('/admin/artist-folder-trash', { artistId });
+}
+
+/** Elimina l'account dell'artista (serve il service account nel Worker). */
+export function deleteUserOnServer(uid: string) {
+  return call<{ ok: boolean }>('/admin/delete-user', { uid });
+}
+
 /** L'artista carica una demo nella sua cartella "Demo" su Drive. */
 export async function uploadDemo(file: Blob, name: string, artistId: string, onProgress: (p: number) => void): Promise<DriveFile> {
   const { uploadUrl } = await call<{ uploadUrl: string }>('/artist/upload', {

@@ -16,6 +16,7 @@ import { CoverDownload } from '../components/CoverDownload';
 import { quoteSummary, usePayments, useQuotes } from '../lib/business';
 import { eur } from '../lib/money';
 import { Loading } from '../components/Loading';
+import { UploadVersion } from '../components/UploadVersion';
 import { IconArrowLeft } from '../components/Icons';
 
 /** shared = l'artista collegato è in feat su un brano di un altro artista (artistId = artista principale). */
@@ -45,6 +46,7 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href, shared }
   const [highlight, setHighlight] = useState<string | null>(null);
   const [dlBusy, setDlBusy] = useState(false);
   const [dlError, setDlError] = useState<string | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const track = shared ? single.track : tracks.find((t) => t.id === trackId);
   const sharedProject = useProjectDoc(shared ? artistId : null, track?.projectId);
@@ -260,6 +262,21 @@ export function TrackPage({ artistId, trackId, backTo, backLabel, href, shared }
                   </button>
                 )}
                 {dlError && <div className="alert alert-error" role="alert">{dlError}</div>}
+              </section>
+            )}
+
+            {role === 'admin' && !shared && artist && project && (
+              <section className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <span className="small muted">Hai sistemato il brano dopo le note?</span>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => setUploadOpen((v) => !v)} aria-expanded={uploadOpen}>
+                    {uploadOpen ? 'Chiudi' : versions.length ? 'Carica versione aggiornata' : 'Carica MP3'}
+                  </button>
+                </div>
+                {uploadOpen && (
+                  <UploadVersion artist={artist} project={project} track={track} count={versions.length}
+                    current={versions.find((v) => v.id === track.currentVersionId) ?? versions[0]} />
+                )}
               </section>
             )}
 

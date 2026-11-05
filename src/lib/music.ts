@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { safeLinks } from './safeUrl';
+import { trashDriveFile } from './worker';
 import { stepsFromLegacyStage, stepsFromTemplate, type Step } from './steps';
 
 export type ProjectType = 'singolo' | 'ep' | 'album';
@@ -246,8 +247,9 @@ export async function deleteTrack(artistId: string, id: string) {
   await batch.commit();
 }
 
-export async function addVersion(artistId: string, data: Omit<Version, 'id' | 'createdMs'>) {
-  const ref = await addDoc(collection(db, 'artists', artistId, 'versions'), { collaboratorUids: [], ...data, createdAt: serverTimestamp() });
+/** first = prima versione del brano (la notifica all'artista dice "Nuovo brano"). */
+export async function addVersion(artistId: string, data: Omit<Version, 'id' | 'createdMs'>, first = false) {
+  const ref = await addDoc(collection(db, 'artists', artistId, 'versions'), { collaboratorUids: [], ...data, first, createdAt: serverTimestamp() });
   await updateTrack(artistId, data.trackId, { currentVersionId: ref.id, awaitingReview: true });
   return ref.id;
 }
@@ -255,11 +257,25 @@ export async function addVersion(artistId: string, data: Omit<Version, 'id' | 'c
 /**
  * Sostituisce l'MP3 di una versione con quello sistemato: stesso nome, stesse note, file nuovo.
  * createdAt torna ad "adesso", così la versione risale in cima e all'artista arriva la notifica.
- * Il file vecchio resta su Drive.
+ * Il file vecchio va nel Cestino di Drive, se nessun'altra versione o demo lo usa.
+ * Ritorna false se il file vecchio non è stato tolto (la sostituzione è comunque fatta).
  */
 export async function replaceVersionFile(artistId: string, version: Version, file: Pick<Version, 'mp3FileId' | 'fileName' | 'size' | 'peaks' | 'duration'>) {
   await updateDoc(doc(db, 'artists', artistId, 'versions', version.id), { ...file, createdAt: serverTimestamp(), replacedAt: serverTimestamp() });
   await updateTrack(artistId, version.trackId, { currentVersionId: version.id, awaitingReview: true });
+  const old = version.mp3FileId;
+  if (!old || old === file.mp3FileId) return true;
+  try {
+    const [inVersions, inDemos] = await Promise.all([
+      getDocs(query(collection(db, 'artists', artistId, 'versions'), where('mp3FileId', '==', old))),
+      getDocs(query(collection(db, 'artists', artistId, 'demos'), where('fileId', '==', old))),
+    ]);
+    if (inVersions.docs.some((d) => d.id !== version.id) || !inDemos.empty) return true; // il file serve ancora
+    await trashDriveFile(old);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function updateVersion(artistId: string, id: string, data: Partial<Pick<Version, 'label' | 'notes' | 'downloadEnabled'>>) {

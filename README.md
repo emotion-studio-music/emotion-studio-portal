@@ -444,6 +444,26 @@ non pubblicare con `npm run deploy` finché non è sistemata.
 
 Eseguili ogni volta che cambi `firestore.rules`, prima di `npm run deploy`.
 
+## Versione aggiornata, notifiche ed eliminazione artista
+
+**Aggiorna il Worker (obbligatorio)** – Cloudflare → `emotion-api` → **Modifica codice** → cancella tutto → incolla il nuovo
+`worker/worker.js` → **Deploy**. Le variabili restano quelle di prima. Poi `npm run deploy`.
+
+**Versione aggiornata** – Quando hai sistemato un brano dopo le note dell'artista: pannello Musica → sul brano
+**Carica versione aggiornata**, oppure dalla pagina del brano (la stessa dove leggi le note) → **Carica versione aggiornata**.
+- *Sostituisci "Mix v1"* (scelta di partenza): il file nuovo prende il posto del vecchio, nome e note restano.
+  Il file vecchio va nel **Cestino di Drive**, che si svuota da solo dopo 30 giorni (fino ad allora puoi recuperarlo).
+- *Aggiungi come Mix v2*: resta anche la versione precedente, l'artista le confronta con A/B.
+
+**Notifiche all'artista** (entro 5 minuti): "Nuovo brano da ascoltare" alla prima versione di un brano,
+"Nuova versione da ascoltare" quando ne aggiungi un'altra, "Versione aggiornata da ascoltare" quando sostituisci il file.
+Arrivano anche agli artisti in feat. L'artista deve aver attivato le notifiche nel Profilo.
+
+**Eliminare un artista** – Profilo dell'artista → in fondo alla sezione accesso **Elimina artista…** → scrivi il nome d'arte per confermare.
+Spariscono dall'app tutti i suoi dati e il suo account (serve la chiave del service account nel Worker, Fase F).
+Se lasci la spunta, anche la sua cartella su Drive va nel Cestino (recuperabile per 30 giorni). Non si può annullare:
+per togliere solo l'accesso usa **Disattiva artista**.
+
 ## Cosa arriva nelle prossime fasi
 
 - Idee future: riepilogo email per lo studio, promemoria sessione il giorno prima

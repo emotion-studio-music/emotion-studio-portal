@@ -4,7 +4,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useArtist } from '../../lib/data';
 import {
-  changeUsername, createArtist, credentialsMessage, resetArtistPassword, savePrivateNotes, setArtistActive, updateArtist,
+  changeUsername, createArtist, credentialsMessage, deleteArtist, resetArtistPassword, savePrivateNotes, setArtistActive, updateArtist,
   whatsappLink, type ArtistInput,
 } from '../../lib/admin';
 import { isUsernameAccount, slugUsername, usernameOf } from '../../lib/username';
@@ -296,6 +296,7 @@ function AccessControls({ id, email, uid, stageName, phone, active }: { id: stri
         </button>
       </div>
       {msg && <div className={`alert ${msg.ok ? 'alert-ok' : 'alert-error'}`} role="status">{msg.text}</div>}
+      <DeleteArtist id={id} stageName={stageName} />
     </>
   );
 }
@@ -324,6 +325,57 @@ function CreatedPanel({ c, onDone }: { c: Created; onDone: () => void }) {
         )}
         <button className="btn" onClick={() => void copy()}><IconCopy width={18} height={18} /> {copied ? 'Messaggio copiato' : 'Copia messaggio'}</button>
         <button className="btn btn-ghost" onClick={onDone}>Vai al profilo</button>
+      </div>
+    </div>
+  );
+}
+
+/** Elimina per sempre l'artista: si conferma scrivendo il nome d'arte. */
+function DeleteArtist({ id, stageName }: { id: string; stageName: string }) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [withDrive, setWithDrive] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ok = typed.trim().toLowerCase() === stageName.trim().toLowerCase() && stageName.trim() !== '';
+
+  const remove = async () => {
+    setBusy(true); setError(null);
+    try {
+      const warnings = await deleteArtist(id, withDrive);
+      if (warnings.length) alert(`Artista eliminato.\n\n${warnings.join('\n')}`);
+      navigate('/admin', { replace: true });
+    } catch (e) {
+      setError(errorMessage(e)); setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start', color: 'var(--danger)' }} onClick={() => setOpen(true)}>
+        Elimina artista…
+      </button>
+    );
+  }
+  return (
+    <div className="inset" style={{ borderColor: 'var(--danger)' }}>
+      <strong>Eliminare per sempre {stageName}?</strong>
+      <span className="small muted">
+        Spariscono dall’app profilo, progetti, brani, versioni, note, demo, preventivi, pagamenti, sessioni e task, e l’artista non può più entrare.
+        Non si può annullare. Se vuoi solo togliergli l’accesso usa “Disattiva artista”.
+      </span>
+      <label className="check" style={{ alignItems: 'center' }}>
+        <input type="checkbox" checked={withDrive} onChange={(e) => setWithDrive(e.target.checked)} disabled={busy} />
+        <span className="small">Sposta nel Cestino di Drive anche la sua cartella (MP3, demo, copertine). Il Cestino si svuota da solo dopo 30 giorni: fino ad allora puoi recuperarla.</span>
+      </label>
+      <label className="field"><span>Per confermare scrivi “{stageName}”</span>
+        <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy} />
+      </label>
+      {error && <div className="alert alert-error" role="alert">{error}</div>}
+      <div className="row-actions">
+        <button type="button" className="btn btn-danger btn-sm" disabled={!ok || busy} onClick={() => void remove()}>{busy ? 'Elimino…' : 'Elimina per sempre'}</button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => { setOpen(false); setTyped(''); }}>Annulla</button>
       </div>
     </div>
   );

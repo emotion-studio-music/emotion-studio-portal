@@ -2,10 +2,12 @@ import { deleteApp, initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signOut,
 } from 'firebase/auth';
-import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import {
+  addDoc, collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch,
+} from 'firebase/firestore';
 import { setCollaborators, type Track } from './music';
 import { auth, db, firebaseConfig } from './firebase';
-import { createUserOnServer, updateUserOnServer } from './worker';
+import { createUserOnServer, deleteUserOnServer, trashArtistFolder, updateUserOnServer, workerConfigured } from './worker';
 import { toLoginEmail } from './username';
 import type { Artist } from './types';
 
@@ -76,6 +78,37 @@ export async function setArtistActive(id: string, active: boolean) {
         ((t.data().collaboratorIds as string[] | undefined) ?? []).filter((x) => x !== id));
     }
   }
+}
+
+const ARTIST_DATA = ['projects', 'tracks', 'versions', 'comments', 'demos', 'quotes', 'payments', 'tasks', 'sessions', 'private'];
+
+/**
+ * Elimina per sempre un artista: lo toglie dai feat degli altri, cancella tutti i suoi dati nell'app
+ * e il suo account. Con withDrive la sua cartella su Drive va nel Cestino (si svuota da sola dopo 30 giorni).
+ * Ritorna gli avvisi per le parti non riuscite (i dati nell'app vengono comunque eliminati).
+ */
+export async function deleteArtist(id: string, withDrive: boolean): Promise<string[]> {
+  const warnings: string[] = [];
+  const a = await getDoc(doc(db, 'artists', id));
+  const uids = (a.data()?.memberUids as string[] | undefined) ?? [];
+  await setArtistActive(id, false); // via dai feat sui brani degli altri artisti
+  if (withDrive) {
+    try { await trashArtistFolder(id); } catch (e) { warnings.push(`Cartella su Drive non eliminata: ${(e as Error).message}`); }
+  }
+  for (const name of ARTIST_DATA) {
+    const docs = (await getDocs(collection(db, 'artists', id, name))).docs;
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = writeBatch(db);
+      docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+  await deleteDoc(doc(db, 'artists', id));
+  for (const uid of uids) {
+    if (!workerConfigured) { warnings.push('Account non eliminato: il Worker non è collegato.'); break; }
+    try { await deleteUserOnServer(uid); } catch (e) { warnings.push(`Account non eliminato: ${(e as Error).message}`); }
+  }
+  return warnings;
 }
 
 export function savePrivateNotes(id: string, notes: string) {
