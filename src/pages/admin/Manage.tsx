@@ -4,7 +4,7 @@ import { useArtist, useSettings } from '../../lib/data';
 import { QuoteBuilder } from '../../components/QuoteBuilder';
 import { useTracks } from '../../lib/music';
 import {
-  PAYMENT_KIND, SESSION_TYPES, createPayment, createSession, createTask, deletePayment, deleteQuote,
+  PAYMENT_KIND, SESSION_TYPES, createPayment, createSession, createTask, deletePayment, deleteQuote, updateQuote,
   deleteSession, deleteTask, fmtDay, setTaskAssignee, quoteSummary, setTaskDone, todayKey, updatePayment, usePayments, useQuotes,
   useSessions, useTasks, type Payment, type PaymentKind, type Quote,
 } from '../../lib/business';
@@ -100,7 +100,9 @@ function QuoteCard({ artistId, q, payments }: { artistId: string; q: Quote; paym
   const [amount, setAmount] = useState('');
   const [due, setDue] = useState('');
   const [card, setCard] = useState('');
+  const [payNote, setPayNote] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const pct = q.amountCents ? Math.round((s.paid / q.amountCents) * 100) : 0;
   const run = (p: Promise<unknown>) => p.catch((e) => setError(errorMessage(e)));
 
@@ -110,25 +112,31 @@ function QuoteCard({ artistId, q, payments }: { artistId: string; q: Quote; paym
     if (card && !/^https:\/\//.test(card)) { setError('Il link di pagamento deve iniziare con https://'); return; }
     setError(null);
     await run(createPayment(artistId, {
-      quoteId: q.id, kind, amountCents: cents, status, dueDate: due, cardLink: card.trim(), note: '',
+      quoteId: q.id, kind, amountCents: cents, status, dueDate: due, cardLink: card.trim(), note: payNote.trim(),
       ...(status === 'pagato' ? { paidDate: todayKey() } : {}),
     }));
-    setAmount(''); setDue(''); setCard(''); setKind('saldo');
+    setAmount(''); setDue(''); setCard(''); setPayNote(''); setKind('saldo');
   };
 
   return (
     <section className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div className="section-head">
-        <span className="h3">{q.title}</span>
-        <span style={{ fontWeight: 700 }}>{eur(q.amountCents)}</span>
-      </div>
+      {editing ? (
+        <EditQuote artistId={artistId} q={q} onDone={() => setEditing(false)} />
+      ) : (
+        <div className="section-head">
+          <span className="h3">{q.title}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontWeight: 700 }}>{eur(q.amountCents)}</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>Modifica</button>
+          </span>
+        </div>
+      )}
       <div className="progress"><div style={{ width: `${pct}%` }} /></div>
       <span className="small muted">Incassato {eur(s.paid)} · {s.left > 0 ? `mancano ${eur(s.left)}` : 'saldato ✓'}</span>
-      {(names.length > 0 || q.note) && (
-        <span className="small muted">
-          {names.map((nm) => `${nm}${q.pricing === 'brano' ? ` ${eur(q.unitCents)}` : ''}`).join(' · ')}{q.note ? `${names.length ? ' — ' : ''}${q.note}` : ''}
-        </span>
+      {names.length > 0 && (
+        <span className="small muted">{names.map((nm) => `${nm}${q.pricing === 'brano' ? ` ${eur(q.unitCents)}` : ''}`).join(' · ')}</span>
       )}
+      {q.note && !editing && <span className="small" style={{ whiteSpace: 'pre-line', color: '#D6D6D2' }}>{q.note}</span>}
 
       {s.payments.length > 0 && (
         <div className="inset" style={{ gap: 0 }}>
@@ -147,6 +155,9 @@ function QuoteCard({ artistId, q, payments }: { artistId: string; q: Quote; paym
           <label className="field"><span>Importo (€)</span><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={kind === 'saldo' && s.left ? String(s.left / 100).replace('.', ',') : '150'} /></label>
           <label className="field"><span>Entro il (facoltativo)</span><input className="input" type="date" value={due} onChange={(e) => setDue(e.target.value)} /></label>
         </div>
+        <label className="field"><span>A cosa si riferisce (facoltativo, lo vede l’artista)</span>
+          <input className="input" value={payNote} onChange={(e) => setPayNote(e.target.value)} maxLength={200} placeholder="Acconto per le sessioni di registrazione di novembre" />
+        </label>
         <label className="field"><span>Link per pagare con carta (facoltativo)</span>
           <input className="input" value={card} onChange={(e) => setCard(e.target.value)} placeholder="https://… generato da Nexi, SumUp, Stripe…" />
         </label>
@@ -160,6 +171,41 @@ function QuoteCard({ artistId, q, payments }: { artistId: string; q: Quote; paym
         </div>
       </div>
     </section>
+  );
+}
+
+/** Correggi titolo, importo e descrizione di un preventivo già creato. */
+function EditQuote({ artistId, q, onDone }: { artistId: string; q: Quote; onDone: () => void }) {
+  const [title, setTitle] = useState(q.title);
+  const [amount, setAmount] = useState(String(q.amountCents / 100).replace('.', ','));
+  const [note, setNote] = useState(q.note);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    const cents = parseEuro(amount);
+    if (!title.trim()) { setError('Scrivi un titolo.'); return; }
+    if (cents === null || cents === 0) { setError('Inserisci un importo valido.'); return; }
+    setBusy(true); setError(null);
+    try { await updateQuote(artistId, q.id, { title: title.trim(), amountCents: cents, note: note.trim() }); onDone(); }
+    catch (e) { setError(errorMessage(e)); setBusy(false); }
+  };
+  return (
+    <div className="inset">
+      <label className="field"><span>Titolo (lo vede l’artista)</span>
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+      </label>
+      <label className="field"><span>Importo totale (€)</span>
+        <input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </label>
+      <label className="field"><span>Descrizione: cosa comprende</span>
+        <textarea className="textarea" style={{ minHeight: 80 }} value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
+      </label>
+      {error && <div className="alert alert-error" role="alert">{error}</div>}
+      <div className="row-actions">
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void save()}>{busy ? 'Salvo…' : 'Salva'}</button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={onDone}>Annulla</button>
+      </div>
+    </div>
   );
 }
 

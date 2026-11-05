@@ -13,7 +13,7 @@ const PAY_OPTS: { value: PayOpt; label: string }[] = [
   { value: 'chiedi', label: 'Chiedi all’artista' },
 ];
 
-/** Preventivo a clic: servizi, brani, tariffa, pagamento. Niente da scrivere. */
+/** Preventivo a clic: servizi, brani, tariffa, pagamento. Titolo e descrizione si scrivono da soli, ma si possono cambiare. */
 export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string; settings: StudioSettings; tracks: Track[] }) {
   const step = settings.priceStep > 0 ? settings.priceStep : 50;
   const [services, setServices] = useState<string[]>([]);
@@ -27,7 +27,7 @@ export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string;
   };
   const [pay, setPay] = useState<PayOpt>('niente');
   const [note, setNote] = useState('');
-  const [showNote, setShowNote] = useState(false);
+  const [customTitle, setCustomTitle] = useState<string | null>(null); // null = titolo automatico
   const [newTrack, setNewTrack] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -36,9 +36,10 @@ export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string;
   const n = Math.max(1, trackIds.length);
   const totalCents = Math.round(price * 100) * (pricing === 'brano' ? n : 1);
   const names = trackIds.map((id) => tracks.find((t) => t.id === id)?.title).filter(Boolean) as string[];
-  const title = services.length
+  const autoTitle = services.length
     ? `${servicesTitle(services)}${names.length === 1 ? ` – ${names[0]}` : names.length > 1 ? ` – ${names.length} brani` : ''}`
     : '';
+  const title = (customTitle ?? autoTitle).trim();
 
   const addTrack = async () => {
     if (!newTrack?.trim()) return;
@@ -51,7 +52,7 @@ export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string;
   };
 
   const create = async () => {
-    if (!services.length || totalCents <= 0) return;
+    if (!title || totalCents <= 0) return;
     setBusy(true); setMsg(null);
     try {
       const q = await createQuote(artistId, {
@@ -63,7 +64,7 @@ export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string;
       if (pay === 'acconto') await createPayment(artistId, { ...base, kind: 'acconto', amountCents: Math.round(totalCents / 2), status: 'pagato', paidDate: todayKey() });
       if (pay === 'chiedi') await createPayment(artistId, { ...base, kind: 'saldo', amountCents: totalCents, status: 'da_pagare' });
       setMsg({ ok: true, text: `Preventivo creato: ${title} · ${eur(totalCents)}` });
-      setServices([]); setTrackIds([]); setPay('niente'); setNote(''); setShowNote(false);
+      setServices([]); setTrackIds([]); setPay('niente'); setNote(''); setCustomTitle(null);
     } catch (e) {
       setMsg({ ok: false, text: errorMessage(e) });
     } finally {
@@ -123,20 +124,22 @@ export function QuoteBuilder({ artistId, settings, tracks }: { artistId: string;
         </div>
       </div>
 
-      {showNote ? (
-        <label className="field"><span>Nota visibile all’artista</span>
-          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Include 2 revisioni del mix" />
-        </label>
-      ) : (
-        <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setShowNote(true)}>+ Aggiungi una nota (facoltativa)</button>
-      )}
+      <div className="field"><span>5 · Titolo e descrizione (li vede l’artista)</span>
+        <input className="input" value={customTitle ?? autoTitle} onChange={(e) => setCustomTitle(e.target.value)} maxLength={120}
+          placeholder="Es. Singolo “Notte” – registrazione, mix e master" aria-label="Titolo del preventivo" />
+        {customTitle !== null && autoTitle && customTitle !== autoTitle && (
+          <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setCustomTitle(null)}>Usa il titolo automatico</button>
+        )}
+        <textarea className="textarea" style={{ minHeight: 80 }} value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000}
+          placeholder="Cosa comprende: 2 giorni di registrazione, mix con 2 revisioni, master per gli store…" aria-label="Descrizione del preventivo" />
+      </div>
 
       <div className="quote-total">
-        <span className="small muted">{title || 'Scegli almeno un servizio'}{pricing === 'brano' && trackIds.length > 1 ? ` · ${trackIds.length} × ${eur(price * 100)}` : ''}</span>
+        <span className="small muted">{title || 'Scegli un servizio o scrivi un titolo'}{pricing === 'brano' && trackIds.length > 1 ? ` · ${trackIds.length} × ${eur(price * 100)}` : ''}</span>
         <span className="money-big" style={{ fontSize: 36 }}>{eur(totalCents)}</span>
       </div>
       {msg && <div className={`alert ${msg.ok ? 'alert-ok' : 'alert-error'}`} role="status">{msg.text}</div>}
-      <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} disabled={busy || !services.length || totalCents <= 0} onClick={() => void create()}>
+      <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} disabled={busy || !title || totalCents <= 0} onClick={() => void create()}>
         {busy ? 'Creo…' : 'Crea preventivo'}
       </button>
     </section>
