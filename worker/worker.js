@@ -519,7 +519,7 @@ async function vapidHeader(env, endpoint) {
   const head = bytesToB64url(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
   const body = bytesToB64url(enc.encode(JSON.stringify({ aud, exp, sub: env.VAPID_SUBJECT || 'mailto:emotion.studiomusic@gmail.com' })));
   const sig = bytesToB64url(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, enc.encode(`${head}.${body}`)));
-  const value = `vapid t=${head}.${body}.${sig}, k=${env.VAPID_PUBLIC_KEY}`;
+  const value = `vapid t=${head}.${body}.${sig}, k=${bytesToB64url(pub.slice(0, 65))}`; // solo i 65 byte della chiave
   vapidCache.set(aud, { value, exp: exp * 1000 });
   return value;
 }

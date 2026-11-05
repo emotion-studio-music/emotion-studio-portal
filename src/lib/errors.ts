@@ -1,7 +1,8 @@
 import { t } from './i18n';
 // Traduce gli errori di Firebase in messaggi chiari in italiano.
 export function errorMessage(e: unknown): string {
-  const code = (e as { code?: string })?.code ?? '';
+  const raw = (e as { code?: unknown })?.code;
+  const code = typeof raw === 'string' ? raw : ''; // gli errori del browser hanno codici numerici
   const map: Record<string, string> = {
     'auth/invalid-credential': 'Nome utente o password non corretti.',
     'auth/wrong-password': 'Password non corretta.',

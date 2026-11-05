@@ -314,6 +314,7 @@ export const EN: Record<string, string> = {
   'Risposta di Drive non leggibile.': 'Unreadable response from Drive.',
   'Caricamento non riuscito.': 'Upload failed.',
   'Sessione scaduta.': 'Session expired.',
+  'Attivazione non riuscita ({codice}). Chiudi del tutto l’app, riaprila e riprova.': 'Couldn’t turn them on ({codice}). Fully close the app, reopen it and try again.',
   'Permesso non concesso. Puoi attivarlo dalle impostazioni del browser o del telefono.': 'Permission not granted. You can turn it on in your browser or phone settings.',
   'Prima attiva le notifiche.': 'Turn on notifications first.',
   'Invio non riuscito.': 'Sending failed.',
